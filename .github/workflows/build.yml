@@ -28,13 +28,27 @@ jobs:
         run: chmod +x gradlew
 
       - name: Unit tests
-        run: ./gradlew testDebugUnitTest --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew testDebugUnitTest 2>&1 | tee -a gradle.log
 
       - name: Build debug and release APKs
-        run: ./gradlew assembleDebug assembleRelease --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug assembleRelease 2>&1 | tee -a gradle.log
 
       - name: Lint
-        run: ./gradlew lintDebug
+        run: |
+          set -o pipefail
+          ./gradlew lintDebug 2>&1 | tee -a gradle.log
+
+      # Surfaces Gradle's error summary as an annotation on the run page.
+      - name: Report Gradle failure
+        if: failure()
+        run: |
+          summary=$( (grep -A 25 'What went wrong' gradle.log; grep -E '^(e:|ERROR:|.*error:)' gradle.log) | head -60 \
+            | sed -e 's/%/%25/g' -e ':a;N;$!ba;s/\n/%0A/g')
+          echo "::error title=Gradle failure::${summary:-see log}"
 
       - name: APK sizes
         run: ls -l build/outputs/apk/debug/*.apk build/outputs/apk/release/*.apk

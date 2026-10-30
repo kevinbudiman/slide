@@ -22,8 +22,6 @@ import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
 
-import androidx.core.content.FileProvider;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -38,6 +36,7 @@ import trikita.jedux.Action;
 import trikita.slide.ActionType;
 import trikita.slide.App;
 import trikita.slide.PdfExporter;
+import trikita.slide.PdfShareProvider;
 import trikita.slide.R;
 import trikita.slide.State;
 
@@ -229,7 +228,7 @@ public class MainActivity extends Activity {
         String name = pdfName() + ".pdf";
         Toast.makeText(this, R.string.preparing_pdf, Toast.LENGTH_SHORT).show();
         App.io().execute(() -> {
-            File dir = new File(getCacheDir(), "pdf");
+            File dir = PdfShareProvider.directory(this);
             File[] old = dir.listFiles();
             if (old != null) {
                 for (File f : old) {
@@ -255,7 +254,7 @@ public class MainActivity extends Activity {
                     Toast.makeText(this, R.string.failed_export_pdf, Toast.LENGTH_LONG).show();
                     return;
                 }
-                Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".files", file);
+                Uri uri = PdfShareProvider.uriFor(this, file);
                 Intent send = new Intent(Intent.ACTION_SEND);
                 send.setType("application/pdf");
                 send.putExtra(Intent.EXTRA_STREAM, uri);
