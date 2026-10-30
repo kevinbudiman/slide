@@ -1,14 +1,16 @@
 package trikita.slide.ui;
 
-import android.graphics.Color;
+import android.content.Context;
 import android.graphics.Typeface;
 import android.graphics.drawable.ShapeDrawable;
 import android.graphics.drawable.shapes.OvalShape;
+import android.os.Build;
 import android.view.Gravity;
 import android.view.View;
 
 import static trikita.anvil.DSL.*;
 
+import trikita.anvil.Anvil;
 import trikita.slide.R;
 
 public class Style {
@@ -40,11 +42,11 @@ public class Style {
             size(FILL, FILL);
             fitsSystemWindows(true);
             padding(dip(8));
-            backgroundColor(Color.WHITE);
+            backgroundColor(color(R.color.editor_background));
         }
 
         public static void textStyle() {
-            textColor(Color.BLACK);
+            textColor(color(R.color.editor_text));
             typeface(Typeface.create("sans-serif-light", 0));
         }
         
@@ -70,8 +72,16 @@ public class Style {
             text(ICONS[MENU_BUTTON]);
             typeface("MaterialIcons-Regular.ttf");
             textSize(sip(26));
-            textColor(0xcc555555);
+            textColor(color(R.color.editor_menu_button));
         }
+    }
+
+    private static int color(int id) {
+        Context c = Anvil.currentView().getContext();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return c.getColor(id);
+        }
+        return c.getResources().getColor(id);
     }
 
     public static class StylePicker {

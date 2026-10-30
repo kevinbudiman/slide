@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="editor_background">#ffffffff</color>
+    <color name="editor_text">#ff000000</color>
+    <color name="editor_menu_button">#cc555555</color>
+</resources>
