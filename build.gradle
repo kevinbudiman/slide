@@ -45,7 +45,6 @@ android {
 
 dependencies {
     implementation project(':jedux')
-    implementation project(':promote')
 
     implementation 'androidx.annotation:annotation:1.7.1'
     implementation 'co.trikita:anvil-sdk19:0.3.1'

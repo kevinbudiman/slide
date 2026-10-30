@@ -15,6 +15,5 @@ dependencyResolutionManagement {
 
 rootProject.name = 'slide'
 
-include ':jedux', ':promote'
+include ':jedux'
 project(':jedux').projectDir = file('third_party/jedux')
-project(':promote').projectDir = file('third_party/promote')
