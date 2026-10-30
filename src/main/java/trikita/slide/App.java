@@ -53,4 +53,9 @@ public class App extends Application {
     public static State dispatch(Action<ActionType, ?> action) {
         return instance.store.dispatch(action);
     }
+
+    // Returns a Runnable that removes the subscription.
+    public static Runnable subscribe(Runnable listener) {
+        return instance.store.subscribe(listener);
+    }
 }

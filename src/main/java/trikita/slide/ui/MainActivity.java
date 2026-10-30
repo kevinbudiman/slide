@@ -5,9 +5,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.hardware.display.DisplayManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Display;
 import android.view.WindowManager;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 
 import trikita.jedux.Action;
 import trikita.promote.Promote;
@@ -20,6 +23,9 @@ public class MainActivity extends Activity {
     private MainLayout mLayout;
     private DisplayManager mDisplayManager;
     private SlidePresentation mPresentation;
+    private Runnable mUnsubscribe;
+    private Object mBackCallback;
+    private boolean mBackCallbackRegistered;
 
     private final DisplayManager.DisplayListener mDisplayListener = new DisplayManager.DisplayListener() {
         @Override public void onDisplayAdded(int displayId) { updatePresentation(); }
@@ -34,6 +40,33 @@ public class MainActivity extends Activity {
         mLayout = new MainLayout(this);
         setContentView(mLayout);
         App.getWindowController().setWindow(getWindow());
+        mUnsubscribe = App.subscribe(this::updateBackCallback);
+        updateBackCallback();
+    }
+
+    // With predictive back (targetSdk 36 on Android 16+) onBackPressed() is no longer
+    // called, so leaving presentation mode needs an OnBackInvokedCallback. It is only
+    // registered while presenting, so the editor keeps the system back-to-home animation.
+    private void updateBackCallback() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+        boolean wanted = App.getState().presentationMode();
+        if (wanted == mBackCallbackRegistered) {
+            return;
+        }
+        if (mBackCallback == null) {
+            mBackCallback = (OnBackInvokedCallback) () ->
+                    App.dispatch(new Action<>(ActionType.CLOSE_PRESENTATION));
+        }
+        OnBackInvokedCallback callback = (OnBackInvokedCallback) mBackCallback;
+        if (wanted) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback);
+        } else {
+            getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(callback);
+        }
+        mBackCallbackRegistered = wanted;
     }
 
     @Override
@@ -60,6 +93,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        mUnsubscribe.run();
         App.getWindowController().setWindow(null);
         super.onDestroy();
     }

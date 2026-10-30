@@ -3,15 +3,15 @@ apply plugin: 'com.android.library'
 
 android {
     namespace 'trikita.promote'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         minSdkVersion 21
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     lint {
