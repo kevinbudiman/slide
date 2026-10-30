@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Projector screen with a line chart, matching the legacy launcher PNGs. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M54,66 L54,74"
+        android:strokeColor="#37474F"
+        android:strokeWidth="2" />
+    <path
+        android:pathData="M52,76.5 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0"
+        android:strokeColor="#37474F"
+        android:strokeWidth="1.6" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,36 h44 v30 h-44 z" />
+    <path
+        android:fillColor="#37474F"
+        android:pathData="M30.5,33 h47 a1.5,1.5 0 0,1 0,3 h-47 a1.5,1.5 0 0,1 0,-3 z" />
+    <path
+        android:pathData="M39,58 L49,51 L59,54 L69,44"
+        android:strokeColor="#F5C21B"
+        android:strokeWidth="2"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="#1E8C7E"
+        android:pathData="M36.5,58 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0 M46.5,51 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0 M56.5,54 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0 M65.5,44 a3.5,3.5 0 1,0 7,0 a3.5,3.5 0 1,0 -7,0" />
+</vector>

@@ -3,4 +3,5 @@
     <color name="editor_background">#ffffffff</color>
     <color name="editor_text">#ff000000</color>
     <color name="editor_menu_button">#cc555555</color>
+    <color name="ic_launcher_background">#FFF5C21B</color>
 </resources>
