@@ -56,7 +56,7 @@ repositories {
 dependencies {
     implementation 'androidx.annotation:annotation:1.7.1'
 
-    implementation 'co.trikita:anvil-sdk21:0.5.0'
+    implementation 'co.trikita:anvil-sdk19:0.3.1'
     implementation 'com.github.trikita:jedux:-SNAPSHOT'
     implementation 'com.github.trikita:promote:-SNAPSHOT'
 
