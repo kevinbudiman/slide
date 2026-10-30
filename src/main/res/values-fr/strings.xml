@@ -2,7 +2,7 @@
 <resources>
   <string name="app_name">Slide</string>
   
-  <string name="tutorial_text">SLIDE\n\nChaque paragraphe\nest une diapo\n\nCeci est une diapo\n.\navec une ligne vide\n\nTouchez l\'aperçu\npour commencer la présentation.\nVous pouvez également choisir\n un ensemble de couleurs ici.\n\nVoilà !\n\nN\'oubliez pas d\'exporter\nau format PDF et de partager.</string>
+  <string name="tutorial_text">SLIDE\n\nChaque paragraphe\nest une diapo\n\nCeci est une diapo\n.\navec une ligne vide\n\nTouchez l\'aperçu\npour commencer la présentation.\nVous pouvez également choisir\n un ensemble de couleurs ici.\n\nCommencez une ligne par ;\npour les notes\n; Les notes s\'affichent sur votre téléphone quand les diapos sont sur un second écran.\n\nVoilà !\n\nN\'oubliez pas d\'exporter\nau format PDF et de partager.</string>
   
   <string name="pdf_name_prefix">Slide-</string>
   <string name="failed_export_pdf">L\'export au format PDF a échoué</string>
@@ -29,4 +29,18 @@
   <string name="cd_close_presentation">Fermer la présentation</string>
   <string name="cd_start_presentation">Lancer la présentation</string>
   <string name="cd_color_scheme">Palette %1$d</string>
+  <string name="om_undo">Annuler</string>
+  <string name="om_redo">Rétablir</string>
+  <string name="om_overview">Vue d\'ensemble</string>
+  <string name="om_share_pdf">Partager en PDF</string>
+  <string name="preparing_pdf">Préparation du PDF…</string>
+  <string name="cd_reset_timer">Temps écoulé, toucher pour réinitialiser</string>
+  <string name="cd_slide_number">Diapo %1$d</string>
+  <string name="style_font">Police</string>
+  <string name="style_aspect">Format</string>
+  <string name="font_light">Light</string>
+  <string name="font_regular">Normale</string>
+  <string name="font_condensed">Condensée</string>
+  <string name="font_serif">Serif</string>
+  <string name="font_monospace">Chasse fixe</string>
 </resources>

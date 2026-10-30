@@ -12,6 +12,15 @@ import trikita.slide.R;
 public final class Style {
     public static final String SLIDE_FONT = "sans-serif-light";
 
+    // Font families for slides, with their labels in the style dialog.
+    public static final String[] FONTS = {
+        "sans-serif-light", "sans-serif", "sans-serif-condensed", "serif", "monospace",
+    };
+    public static final int[] FONT_LABELS = {
+        R.string.font_light, R.string.font_regular, R.string.font_condensed,
+        R.string.font_serif, R.string.font_monospace,
+    };
+
     // {text color, background color, close button drawable, close icon color}
     public static final int[][] COLOR_SCHEMES = {
         {0xff333333, 0xffeeeeee, R.drawable.dark_round_button, 0xffeeeeee},    // dark gray on white
@@ -35,6 +44,10 @@ public final class Style {
 
     public static int[] scheme(int index) {
         return COLOR_SCHEMES[Math.max(0, Math.min(index, COLOR_SCHEMES.length - 1))];
+    }
+
+    public static String font(int index) {
+        return FONTS[Math.max(0, Math.min(index, FONTS.length - 1))];
     }
 
     public static int color(Context c, int id) {

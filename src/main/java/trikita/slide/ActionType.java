@@ -11,6 +11,8 @@ public enum ActionType {
     PREV_PAGE,
 
     SET_COLOR_SCHEME,
+    SET_FONT,
+    SET_ASPECT,
 
     // Document actions carry the document URI as a String.
     NEW_DOCUMENT,

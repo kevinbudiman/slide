@@ -22,7 +22,11 @@ public class Preview extends View {
     }
 
     public void setState(State state) {
+        boolean resize = mState == null || mState.aspect() != state.aspect();
         mState = state;
+        if (resize) {
+            requestLayout();
+        }
         invalidate();
     }
 
@@ -40,12 +44,13 @@ public class Preview extends View {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        float ratio = mState != null ? mState.aspectRatio() : 9f / 16f;
         int w = MeasureSpec.getSize(widthMeasureSpec);
         int h = MeasureSpec.getSize(heightMeasureSpec);
-        if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED || w * 9 / 16 <= h) {
-            h = w * 9 / 16;
+        if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED || w * ratio <= h) {
+            h = (int) (w * ratio);
         } else {
-            w = h * 16 / 9;
+            w = (int) (h / ratio);
         }
         super.onMeasure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(h, MeasureSpec.EXACTLY));
@@ -61,7 +66,7 @@ public class Preview extends View {
         int page = mFixedPage >= 0 ? mFixedPage : mState.page() + mPageOffset;
         if (page >= 0 && page < slides.size()) {
             SlideRenderer.render(getContext(), slides.get(page), canvas, getWidth(), getHeight(),
-                    Style.SLIDE_FONT, colors[0], colors[1], false, mInvalidate);
+                    Style.font(mState.font()), colors[0], colors[1], false, mInvalidate);
         } else {
             canvas.drawColor(colors[1]);
         }

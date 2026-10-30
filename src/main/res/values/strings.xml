@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">Slide</string>
 
-    <string name="tutorial_text">SLIDE\n\nEach paragraph\nis a slide\n\nThis is a slide\n.\nwith a blank line\n\nTap on the preview\nto start the presentation.\nYou may also pick\na color scheme there.\n\nDone!\n\nDon\'t forget to export\nto PDF and share.</string>
+    <string name="tutorial_text">SLIDE\n\nEach paragraph\nis a slide\n\nThis is a slide\n.\nwith a blank line\n\nTap on the preview\nto start the presentation.\nYou may also pick\na color scheme there.\n\nStart a line with ;\nfor speaker notes\n; Notes appear on your phone while the slides are on a second screen.\n\nDone!\n\nDon\'t forget to export\nto PDF and share.</string>
 
     <string name="pdf_name_prefix">Slide-</string>
     <string name="failed_export_pdf">Failed to export to PDF</string>
@@ -29,4 +29,18 @@
     <string name="cd_close_presentation">Close presentation</string>
     <string name="cd_start_presentation">Start presentation</string>
     <string name="cd_color_scheme">Color scheme %1$d</string>
+    <string name="om_undo">Undo</string>
+    <string name="om_redo">Redo</string>
+    <string name="om_overview">Overview</string>
+    <string name="om_share_pdf">Share PDF</string>
+    <string name="preparing_pdf">Preparing PDF…</string>
+    <string name="cd_reset_timer">Elapsed time, tap to reset</string>
+    <string name="cd_slide_number">Slide %1$d</string>
+    <string name="style_font">Font</string>
+    <string name="style_aspect">Aspect ratio</string>
+    <string name="font_light">Light</string>
+    <string name="font_regular">Regular</string>
+    <string name="font_condensed">Condensed</string>
+    <string name="font_serif">Serif</string>
+    <string name="font_monospace">Monospace</string>
 </resources>

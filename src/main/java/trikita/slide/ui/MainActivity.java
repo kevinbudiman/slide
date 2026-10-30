@@ -14,6 +14,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.OpenableColumns;
 import android.view.Display;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.PopupMenu;
@@ -21,6 +22,12 @@ import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
 
+import androidx.core.content.FileProvider;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -30,6 +37,7 @@ import java.util.Locale;
 import trikita.jedux.Action;
 import trikita.slide.ActionType;
 import trikita.slide.App;
+import trikita.slide.PdfExporter;
 import trikita.slide.R;
 import trikita.slide.State;
 
@@ -59,7 +67,7 @@ public class MainActivity extends Activity {
     public void onCreate(Bundle b) {
         super.onCreate(b);
         mDisplayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
-        mLayout = new MainLayout(this, this::showMenu);
+        mLayout = new MainLayout(this, App.getUndoHistory(), this::showMenu);
         setContentView(mLayout);
         App.getWindowController().setWindow(getWindow());
         mUnsubscribe = App.subscribe(this::render);
@@ -138,9 +146,19 @@ public class MainActivity extends Activity {
         PopupMenu menu = new PopupMenu(this, anchor);
         menu.getMenuInflater().inflate(R.menu.overflow_popup, menu.getMenu());
         menu.getMenu().findItem(R.id.menu_recent).setVisible(!App.getRecentDocuments().list().isEmpty());
+        menu.getMenu().findItem(R.id.menu_undo).setEnabled(mLayout.canUndo());
+        menu.getMenu().findItem(R.id.menu_redo).setEnabled(mLayout.canRedo());
         menu.setOnMenuItemClickListener(item -> {
             int id = item.getItemId();
-            if (id == R.id.menu_new) {
+            if (id == R.id.menu_undo) {
+                mLayout.undo();
+            } else if (id == R.id.menu_redo) {
+                mLayout.redo();
+            } else if (id == R.id.menu_overview) {
+                OverviewDialog.show(this, App.getState(), mLayout::jumpToPage);
+            } else if (id == R.id.menu_share_pdf) {
+                sharePdf();
+            } else if (id == R.id.menu_new) {
                 confirmDiscard(() -> createDocument(NEW_DOCUMENT_REQUEST_CODE, "text/plain",
                         getString(R.string.default_new_doc_name)));
             } else if (id == R.id.menu_open) {
@@ -153,7 +171,7 @@ public class MainActivity extends Activity {
             } else if (id == R.id.menu_insert_image) {
                 openDocument("image/*", PICK_IMAGE_REQUEST_CODE);
             } else if (id == R.id.menu_style) {
-                StyleDialog.show(this, App.getState().colorScheme());
+                StyleDialog.show(this, App.getState());
             } else if (id == R.id.menu_export_pdf) {
                 createDocument(EXPORT_PDF_REQUEST_CODE, "application/pdf", pdfName());
             }
@@ -202,6 +220,94 @@ public class MainActivity extends Activity {
             startActivityForResult(intent, requestCode);
         } catch (ActivityNotFoundException e) {
             Toast.makeText(this, R.string.no_file_picker, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    // Renders the PDF into the cache and hands it to the share sheet.
+    private void sharePdf() {
+        State state = App.getState();
+        String name = pdfName() + ".pdf";
+        Toast.makeText(this, R.string.preparing_pdf, Toast.LENGTH_SHORT).show();
+        App.io().execute(() -> {
+            File dir = new File(getCacheDir(), "pdf");
+            File[] old = dir.listFiles();
+            if (old != null) {
+                for (File f : old) {
+                    f.delete();
+                }
+            }
+            dir.mkdirs();
+            File file = new File(dir, name);
+            boolean ok;
+            try (OutputStream out = new FileOutputStream(file)) {
+                PdfExporter.write(this, state, out);
+                ok = true;
+            } catch (IOException e) {
+                e.printStackTrace();
+                ok = false;
+            }
+            boolean written = ok;
+            mMain.post(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (!written) {
+                    Toast.makeText(this, R.string.failed_export_pdf, Toast.LENGTH_LONG).show();
+                    return;
+                }
+                Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".files", file);
+                Intent send = new Intent(Intent.ACTION_SEND);
+                send.setType("application/pdf");
+                send.putExtra(Intent.EXTRA_STREAM, uri);
+                send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                try {
+                    startActivity(Intent.createChooser(send, getString(R.string.om_share_pdf)));
+                } catch (ActivityNotFoundException e) {
+                    Toast.makeText(this, R.string.failed_export_pdf, Toast.LENGTH_LONG).show();
+                }
+            });
+        });
+    }
+
+    // Presentation clickers send page/arrow keys; volume keys work as a fallback.
+    // Handled before the views so focus navigation does not swallow arrow keys.
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (App.getState().presentationMode()) {
+            ActionType action = presentationKeyAction(event.getKeyCode());
+            if (action != null) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    App.dispatch(new Action<>(action));
+                }
+                return true;
+            }
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    private static ActionType presentationKeyAction(int keyCode) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_PAGE_DOWN:
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+            case KeyEvent.KEYCODE_SPACE:
+            case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_N:
+            case KeyEvent.KEYCODE_MEDIA_NEXT:
+            case KeyEvent.KEYCODE_VOLUME_DOWN:
+                return ActionType.NEXT_PAGE;
+            case KeyEvent.KEYCODE_PAGE_UP:
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+            case KeyEvent.KEYCODE_DPAD_UP:
+            case KeyEvent.KEYCODE_DEL:
+            case KeyEvent.KEYCODE_P:
+            case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+            case KeyEvent.KEYCODE_VOLUME_UP:
+                return ActionType.PREV_PAGE;
+            case KeyEvent.KEYCODE_ESCAPE:
+                return ActionType.CLOSE_PRESENTATION;
+            default:
+                return null;
         }
     }
 

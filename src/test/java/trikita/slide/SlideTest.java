@@ -65,6 +65,13 @@ public class SlideTest {
     }
 
     @Test
+    public void semicolonLinesAreSpeakerNotes() {
+        Slide s = Slide.parse("Title\n; first note\n;second\n.;shown").get(0);
+        assertEquals("Title\n;shown", s.text);
+        assertEquals("first note\nsecond", s.notes);
+    }
+
+    @Test
     public void pageAtFollowsCursor() {
         String text = "A\n\nB";
         assertEquals(0, Slide.pageAt(text, 0));

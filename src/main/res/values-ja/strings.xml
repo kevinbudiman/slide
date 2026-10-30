@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">Slide</string>
 
-    <string name="tutorial_text">SLIDE\n\n各パラグラフ\nがスライドです\n\nこれは空白行のある\n.\nスライドです\n\nプレビューをタップすると\nプレゼンテーションを開始します。\n同様に配色も\n選択できます。\n\n完了です!\n\nPDFにエクスポートして\n共有するこををお忘れなく。</string>
+    <string name="tutorial_text">SLIDE\n\n各パラグラフ\nがスライドです\n\nこれは空白行のある\n.\nスライドです\n\nプレビューをタップすると\nプレゼンテーションを開始します。\n同様に配色も\n選択できます。\n\n行頭に ; を付けると\nスピーカーノートになります\n; ノートは2台目の画面に投影している間、スマートフォンにだけ表示されます。\n\n完了です!\n\nPDFにエクスポートして\n共有するこををお忘れなく。</string>
 
     <string name="pdf_name_prefix">Slide-</string>
     <string name="failed_export_pdf">PDF のエクスポートに失敗しました</string>
@@ -29,4 +29,18 @@
     <string name="cd_close_presentation">プレゼンテーションを閉じる</string>
     <string name="cd_start_presentation">プレゼンテーションを開始</string>
     <string name="cd_color_scheme">配色 %1$d</string>
+    <string name="om_undo">元に戻す</string>
+    <string name="om_redo">やり直す</string>
+    <string name="om_overview">スライド一覧</string>
+    <string name="om_share_pdf">PDF を共有</string>
+    <string name="preparing_pdf">PDF を準備しています…</string>
+    <string name="cd_reset_timer">経過時間（タップでリセット）</string>
+    <string name="cd_slide_number">スライド %1$d</string>
+    <string name="style_font">フォント</string>
+    <string name="style_aspect">縦横比</string>
+    <string name="font_light">ライト</string>
+    <string name="font_regular">標準</string>
+    <string name="font_condensed">コンデンス</string>
+    <string name="font_serif">セリフ</string>
+    <string name="font_monospace">等幅</string>
 </resources>

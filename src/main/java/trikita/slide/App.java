@@ -19,6 +19,8 @@ public class App extends Application {
     private PersistanceController persistanceController;
     private StorageController storageController;
     private RecentDocuments recentDocuments;
+    // Lives here so it survives activity recreation (rotation, dark mode).
+    private final UndoHistory undoHistory = new UndoHistory();
     private final ExecutorService io = Executors.newSingleThreadExecutor();
 
     @Override
@@ -45,6 +47,10 @@ public class App extends Application {
 
     public static WindowController getWindowController() {
         return instance.windowController;
+    }
+
+    public static UndoHistory getUndoHistory() {
+        return instance.undoHistory;
     }
 
     public static RecentDocuments getRecentDocuments() {

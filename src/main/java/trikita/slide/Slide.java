@@ -79,21 +79,30 @@ public final class Slide {
     public final List<Background> backgrounds;
     public final String text;
     public final List<Span> spans;
+    // Speaker notes: lines starting with ';', shown only in the presenter view.
+    public final String notes;
 
-    private Slide(List<Background> backgrounds, String text, List<Span> spans) {
+    private Slide(List<Background> backgrounds, String text, List<Span> spans, String notes) {
         this.backgrounds = Collections.unmodifiableList(backgrounds);
         this.text = text;
         this.spans = Collections.unmodifiableList(spans);
+        this.notes = notes;
     }
 
     static Slide parseOne(String s) {
         List<Background> backgrounds = new ArrayList<>();
         List<Span> spans = new ArrayList<>();
         StringBuilder text = new StringBuilder();
+        StringBuilder notes = new StringBuilder();
         int emSpanStart = -1;
         for (String line : s.split("\n")) {
             if (line.startsWith("@")) {
                 backgrounds.add(new Background(line.substring(1)));
+            } else if (line.startsWith(";")) {
+                if (notes.length() > 0) {
+                    notes.append('\n');
+                }
+                notes.append(line.substring(1).trim());
             } else if (line.startsWith("#")) {
                 int start = text.length();
                 text.append(line.substring(1)).append('\n');
@@ -137,7 +146,7 @@ public final class Slide {
                 clamped.add(new Span(span.type, span.start, end));
             }
         }
-        return new Slide(backgrounds, text.toString(), clamped);
+        return new Slide(backgrounds, text.toString(), clamped, notes.toString());
     }
 
     public static List<Slide> parse(String s) {

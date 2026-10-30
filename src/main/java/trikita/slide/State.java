@@ -7,6 +7,9 @@ import trikita.jedux.Store;
 
 public final class State {
 
+    public static final int ASPECT_16_9 = 0;
+    public static final int ASPECT_4_3 = 1;
+
     public static final class LoadedDocument {
         public final String uri;
         public final String text;
@@ -24,11 +27,13 @@ public final class State {
     private final boolean presentationMode;
     private final boolean toolbarShown;
     private final int colorScheme;
+    private final int font;
+    private final int aspect;
 
     private List<Slide> slides;
 
     public State(String uri, String text, int page, int cursor,
-                 boolean presentationMode, boolean toolbarShown, int colorScheme) {
+                 boolean presentationMode, boolean toolbarShown, int colorScheme, int font, int aspect) {
         this.uri = uri;
         this.text = text;
         this.page = page;
@@ -36,10 +41,12 @@ public final class State {
         this.presentationMode = presentationMode;
         this.toolbarShown = toolbarShown;
         this.colorScheme = colorScheme;
+        this.font = font;
+        this.aspect = aspect;
     }
 
     public static State initial(String text) {
-        return new State(null, text, 0, 0, false, true, 0);
+        return new State(null, text, 0, 0, false, true, 0, 0, ASPECT_16_9);
     }
 
     public String uri() { return uri; }
@@ -49,6 +56,13 @@ public final class State {
     public boolean presentationMode() { return presentationMode; }
     public boolean toolbarShown() { return toolbarShown; }
     public int colorScheme() { return colorScheme; }
+    public int font() { return font; }
+    public int aspect() { return aspect; }
+
+    // Height divided by width.
+    public float aspectRatio() {
+        return aspect == ASPECT_4_3 ? 3f / 4f : 9f / 16f;
+    }
 
     public synchronized List<Slide> slides() {
         if (slides == null) {
@@ -57,16 +71,19 @@ public final class State {
         return slides;
     }
 
-    State withUri(String v) { return new State(v, text, page, cursor, presentationMode, toolbarShown, colorScheme); }
-    State withText(String v) { return new State(uri, v, page, cursor, presentationMode, toolbarShown, colorScheme); }
-    State withPage(int v) { return new State(uri, text, v, cursor, presentationMode, toolbarShown, colorScheme); }
-    State withPresentationMode(boolean v) { return new State(uri, text, page, cursor, v, toolbarShown, colorScheme); }
-    State withToolbarShown(boolean v) { return new State(uri, text, page, cursor, presentationMode, v, colorScheme); }
-    State withColorScheme(int v) { return new State(uri, text, page, cursor, presentationMode, toolbarShown, v); }
+    State withUri(String v) { return new State(v, text, page, cursor, presentationMode, toolbarShown, colorScheme, font, aspect); }
+    State withText(String v) { return new State(uri, v, page, cursor, presentationMode, toolbarShown, colorScheme, font, aspect); }
+    State withPage(int v) { return new State(uri, text, v, cursor, presentationMode, toolbarShown, colorScheme, font, aspect); }
+    State withPresentationMode(boolean v) { return new State(uri, text, page, cursor, v, toolbarShown, colorScheme, font, aspect); }
+    State withToolbarShown(boolean v) { return new State(uri, text, page, cursor, presentationMode, v, colorScheme, font, aspect); }
+    State withColorScheme(int v) { return new State(uri, text, page, cursor, presentationMode, toolbarShown, v, font, aspect); }
+
+    State withFont(int v) { return new State(uri, text, page, cursor, presentationMode, toolbarShown, colorScheme, v, aspect); }
+    State withAspect(int v) { return new State(uri, text, page, cursor, presentationMode, toolbarShown, colorScheme, font, v); }
 
     State withCursor(int v) {
         int c = Math.max(0, Math.min(v, text.length()));
-        return new State(uri, text, Slide.pageAt(text, c), c, presentationMode, toolbarShown, colorScheme);
+        return new State(uri, text, Slide.pageAt(text, c), c, presentationMode, toolbarShown, colorScheme, font, aspect);
     }
 
     // Inserts "@<image>" as a new line above the line that holds the cursor.
@@ -97,6 +114,10 @@ public final class State {
                     return s.withToolbarShown(!s.toolbarShown);
                 case SET_COLOR_SCHEME:
                     return s.withColorScheme((Integer) a.value);
+                case SET_FONT:
+                    return s.withFont((Integer) a.value);
+                case SET_ASPECT:
+                    return s.withAspect((Integer) a.value);
                 case NEW_DOCUMENT:
                     return s.withUri((String) a.value).withText("").withCursor(0);
                 case SAVE_DOCUMENT_AS:

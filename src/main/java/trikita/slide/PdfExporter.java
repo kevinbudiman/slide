@@ -16,8 +16,8 @@ public final class PdfExporter {
 
     // Blocks while background images load, so call it off the main thread.
     public static void write(Context c, State state, OutputStream out) throws IOException {
-        int pageHeight = PAGE_WIDTH * 9 / 16;
-        int[] colors = Style.COLOR_SCHEMES[state.colorScheme()];
+        int pageHeight = (int) (PAGE_WIDTH * state.aspectRatio());
+        int[] colors = Style.scheme(state.colorScheme());
         PdfDocument document = new PdfDocument();
         try {
             PdfDocument.PageInfo pageInfo =
@@ -25,7 +25,7 @@ public final class PdfExporter {
             for (Slide slide : state.slides()) {
                 PdfDocument.Page page = document.startPage(pageInfo);
                 SlideRenderer.render(c, slide, page.getCanvas(), PAGE_WIDTH, pageHeight,
-                        Style.SLIDE_FONT, colors[0], colors[1], true, null);
+                        Style.font(state.font()), colors[0], colors[1], true, null);
                 document.finishPage(page);
             }
             document.writeTo(out);

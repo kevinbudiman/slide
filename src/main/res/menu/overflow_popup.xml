@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
+        android:id="@+id/menu_undo"
+        android:title="@string/om_undo"/>
+    <item
+        android:id="@+id/menu_redo"
+        android:title="@string/om_redo"/>
+    <item
+        android:id="@+id/menu_overview"
+        android:title="@string/om_overview"/>
+    <item
         android:id="@+id/menu_new"
         android:title="@string/om_new"/>
     <item
@@ -21,4 +30,7 @@
     <item
         android:id="@+id/menu_export_pdf"
         android:title="@string/om_export_pdf"/>
+    <item
+        android:id="@+id/menu_share_pdf"
+        android:title="@string/om_share_pdf"/>
 </menu>

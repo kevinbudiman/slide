@@ -43,7 +43,9 @@ public class PersistanceController implements Store.Middleware<Action<ActionType
                     o.optInt("cursor", 0),
                     o.optBoolean("presentationMode", false),
                     o.optBoolean("toolbarShown", true),
-                    o.optInt("colorScheme", 0));
+                    o.optInt("colorScheme", 0),
+                    o.optInt("font", 0),
+                    o.optInt("aspect", State.ASPECT_16_9));
         } catch (JSONException e) {
             return null;
         }
@@ -80,6 +82,8 @@ public class PersistanceController implements Store.Middleware<Action<ActionType
             o.put("presentationMode", s.presentationMode());
             o.put("toolbarShown", s.toolbarShown());
             o.put("colorScheme", s.colorScheme());
+            o.put("font", s.font());
+            o.put("aspect", s.aspect());
             mPreferences.edit().putString(KEY, o.toString()).apply();
         } catch (JSONException e) {
             e.printStackTrace();
