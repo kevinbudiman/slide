@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.view.View;
+import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 
 import trikita.anvil.Anvil;
@@ -17,15 +18,30 @@ import static trikita.anvil.DSL.*;
 
 public class MainLayout extends RenderableView {
 
+    private static final int PRESENTER_BACKGROUND = 0xff111111;
+    private static final int PRESENTER_TEXT = 0xffcccccc;
+
     private Editor mEditor;
+    private boolean mExternalDisplay = false;
 
     public MainLayout(Context c) {
         super(c);
     }
 
+    public void setExternalDisplay(boolean connected) {
+        if (mExternalDisplay != connected) {
+            mExternalDisplay = connected;
+            Anvil.render();
+        }
+    }
+
     public void view() {
         if (App.getState().presentationMode()) {
-            presentation();
+            if (mExternalDisplay) {
+                presenter();
+            } else {
+                presentation();
+            }
         } else {
             editor();
         }
@@ -67,6 +83,67 @@ public class MainLayout extends RenderableView {
                     onClick(v -> App.dispatch(new Action<>(ActionType.OPEN_PRESENTATION)));
                     Anvil.currentView().invalidate();
                 });
+            });
+        });
+    }
+
+    // Shown on the phone while the slide itself is on an external display.
+    private void presenter() {
+        relativeLayout(() -> {
+            size(FILL, FILL);
+            backgroundColor(PRESENTER_BACKGROUND);
+
+            linearLayout(() -> {
+                size(FILL, FILL);
+                orientation(LinearLayout.VERTICAL);
+                padding(dip(16));
+
+                textView(() -> {
+                    size(FILL, WRAP);
+                    text((App.getState().page() + 1) + " / " + App.getState().slides().size());
+                    textColor(PRESENTER_TEXT);
+                    textSize(sip(18));
+                });
+
+                v(Preview.class, () -> {
+                    size(FILL, 0);
+                    weight(2f);
+                    layoutGravity(CENTER_HORIZONTAL);
+                    margin(0, dip(8));
+                    ((Preview) Anvil.currentView()).setPageOffset(0);
+                    Anvil.currentView().invalidate();
+                });
+
+                textView(() -> {
+                    size(FILL, WRAP);
+                    text(R.string.next_slide);
+                    textColor(PRESENTER_TEXT);
+                    textSize(sip(14));
+                });
+
+                v(Preview.class, () -> {
+                    size(FILL, 0);
+                    weight(1f);
+                    layoutGravity(CENTER_HORIZONTAL);
+                    margin(0, dip(8), 0, dip(88));
+                    ((Preview) Anvil.currentView()).setPageOffset(1);
+                    Anvil.currentView().invalidate();
+                });
+            });
+
+            linearLayout(() -> {
+                size(FILL, FILL);
+
+                Style.Preview.touchPlaceholder(v -> App.dispatch(new Action<>(ActionType.PREV_PAGE)));
+                Style.Preview.touchPlaceholder(v -> App.dispatch(new Action<>(ActionType.NEXT_PAGE)));
+            });
+
+            button(() -> {
+                Style.Preview.button(App.getState().colorScheme());
+                margin(0, 0, 0, dip(25));
+                alignParentBottom();
+                centerHorizontal();
+                onClick(v -> App.dispatch(new Action<>(ActionType.CLOSE_PRESENTATION)));
             });
         });
     }

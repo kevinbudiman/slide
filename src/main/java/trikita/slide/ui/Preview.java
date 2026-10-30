@@ -11,8 +11,14 @@ import trikita.slide.Slide;
 
 public class Preview extends View {
 
+    private int mPageOffset = 0;
+
     public Preview(Context context) {
         super(context);
+    }
+
+    public void setPageOffset(int offset) {
+        mPageOffset = offset;
     }
 
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
@@ -29,7 +35,7 @@ public class Preview extends View {
 
     protected void onDraw(Canvas canvas) {
         List<Slide> slides = App.getState().slides();
-        int page = App.getState().page();
+        int page = App.getState().page() + mPageOffset;
         if (page >= 0 && page < slides.size()) {
             slides.get(page).render(getContext(), canvas, getWidth(), getHeight(),
                     Style.SLIDE_FONT,

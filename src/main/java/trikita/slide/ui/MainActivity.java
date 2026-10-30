@@ -1,9 +1,13 @@
 package trikita.slide.ui;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
+import android.hardware.display.DisplayManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.Display;
+import android.view.WindowManager;
 
 import trikita.jedux.Action;
 import trikita.promote.Promote;
@@ -13,16 +17,30 @@ import trikita.slide.middleware.StorageController;
 
 public class MainActivity extends Activity {
 
+    private MainLayout mLayout;
+    private DisplayManager mDisplayManager;
+    private SlidePresentation mPresentation;
+
+    private final DisplayManager.DisplayListener mDisplayListener = new DisplayManager.DisplayListener() {
+        @Override public void onDisplayAdded(int displayId) { updatePresentation(); }
+        @Override public void onDisplayRemoved(int displayId) { updatePresentation(); }
+        @Override public void onDisplayChanged(int displayId) { updatePresentation(); }
+    };
+
     @Override
     public void onCreate(Bundle b) {
         super.onCreate(b);
-        setContentView(new MainLayout(this));
+        mDisplayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+        mLayout = new MainLayout(this);
+        setContentView(mLayout);
         App.getWindowController().setWindow(getWindow());
     }
 
     @Override
     public void onResume() {
         super.onResume();
+        mDisplayManager.registerDisplayListener(mDisplayListener, null);
+        updatePresentation();
         if (App.getState().presentationMode()) {
             App.dispatch(new Action<>(ActionType.OPEN_PRESENTATION));
         }
@@ -34,9 +52,53 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onPause() {
+        mDisplayManager.unregisterDisplayListener(mDisplayListener);
+        dismissPresentation();
+        super.onPause();
+    }
+
+    @Override
     protected void onDestroy() {
         App.getWindowController().setWindow(null);
         super.onDestroy();
+    }
+
+    private void updatePresentation() {
+        Display[] displays = mDisplayManager.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION);
+        Display display = displays.length > 0 ? displays[0] : null;
+
+        if (mPresentation != null
+                && (display == null || mPresentation.getDisplay().getDisplayId() != display.getDisplayId())) {
+            dismissPresentation();
+        }
+
+        if (mPresentation == null && display != null) {
+            SlidePresentation presentation = new SlidePresentation(this, display);
+            presentation.setOnDismissListener(dialog -> {
+                if (mPresentation == dialog) {
+                    mPresentation = null;
+                    mLayout.setExternalDisplay(false);
+                }
+            });
+            try {
+                presentation.show();
+                mPresentation = presentation;
+            } catch (WindowManager.InvalidDisplayException e) {
+                e.printStackTrace();
+            }
+        }
+
+        mLayout.setExternalDisplay(mPresentation != null);
+    }
+
+    private void dismissPresentation() {
+        if (mPresentation != null) {
+            SlidePresentation presentation = mPresentation;
+            mPresentation = null;
+            presentation.dismiss();
+            mLayout.setExternalDisplay(false);
+        }
     }
 
     @Override
