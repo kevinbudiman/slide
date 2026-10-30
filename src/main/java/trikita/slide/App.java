@@ -2,12 +2,13 @@ package trikita.slide;
 
 import android.app.Application;
 
-import trikita.anvil.Anvil;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import trikita.jedux.Action;
-import trikita.jedux.Logger;
 import trikita.jedux.Store;
-import trikita.slide.middleware.StorageController;
 import trikita.slide.middleware.PersistanceController;
+import trikita.slide.middleware.StorageController;
 import trikita.slide.middleware.WindowController;
 
 public class App extends Application {
@@ -15,6 +16,10 @@ public class App extends Application {
 
     private Store<Action<ActionType, ?>, State> store;
     private WindowController windowController;
+    private PersistanceController persistanceController;
+    private StorageController storageController;
+    private RecentDocuments recentDocuments;
+    private final ExecutorService io = Executors.newSingleThreadExecutor();
 
     @Override
     public void onCreate() {
@@ -22,28 +27,33 @@ public class App extends Application {
         App.instance = this;
 
         this.windowController = new WindowController();
+        this.recentDocuments = new RecentDocuments(this);
+        this.persistanceController = new PersistanceController(this);
+        this.storageController = new StorageController(this, io);
 
-        PersistanceController persistanceController = new PersistanceController(this);
         State initialState = persistanceController.getSavedState();
         if (initialState == null) {
-            initialState = State.Default.build(this);
+            initialState = State.initial(getString(R.string.tutorial_text));
         }
-        StorageController sc = new StorageController(this);
 
         this.store = new Store<>(new State.Reducer(),
                 initialState,
-//                new Logger<>("Slide"),
                 persistanceController,
-                this.windowController,
-                sc);
-
-        sc.dumpToFile(false);   // false - with no delay
-
-        this.store.subscribe(Anvil::render);
+                windowController,
+                storageController);
     }
 
     public static WindowController getWindowController() {
         return instance.windowController;
+    }
+
+    public static RecentDocuments getRecentDocuments() {
+        return instance.recentDocuments;
+    }
+
+    // Single background thread for file I/O, so writes keep their order.
+    public static ExecutorService io() {
+        return instance.io;
     }
 
     public static State getState() {
@@ -57,5 +67,11 @@ public class App extends Application {
     // Returns a Runnable that removes the subscription.
     public static Runnable subscribe(Runnable listener) {
         return instance.store.subscribe(listener);
+    }
+
+    // Writes pending state and document changes immediately.
+    public static void flush() {
+        instance.persistanceController.flush();
+        instance.storageController.flush();
     }
 }

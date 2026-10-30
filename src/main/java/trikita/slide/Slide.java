@@ -1,40 +1,39 @@
 package trikita.slide;
 
-import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.Rect;
-import android.graphics.Typeface;
-import android.graphics.drawable.Drawable;
-import android.os.Build;
-import android.text.Layout;
-import android.text.SpannableStringBuilder;
-import android.text.StaticLayout;
-import android.text.TextPaint;
-import android.text.style.RelativeSizeSpan;
-import android.text.style.StyleSpan;
-import android.text.style.TypefaceSpan;
 import android.view.Gravity;
 
-import com.bumptech.glide.Glide;
-import com.bumptech.glide.RequestBuilder;
-import com.bumptech.glide.request.FutureTarget;
-import com.bumptech.glide.request.target.CustomTarget;
-import com.bumptech.glide.request.transition.Transition;
-
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import trikita.anvil.Anvil;
+// A parsed slide. Parsing is plain Java so it can be unit tested; rendering
+// lives in SlideRenderer.
+public final class Slide {
 
-public class Slide {
+    // Blank lines (possibly containing whitespace) separate slides.
+    private static final Pattern PARAGRAPH_SEPARATOR = Pattern.compile("(\n\\s*){2,}");
 
-    private static class Background {
+    public static final int SPAN_HEADER = 0;
+    public static final int SPAN_CODE = 1;
+    public static final int SPAN_BOLD = 2;
+
+    public static final class Span {
+        public final int type;
+        public final int start;
+        public final int end;
+
+        Span(int type, int start, int end) {
+            this.type = type;
+            this.start = start;
+            this.end = end;
+        }
+    }
+
+    public static final class Background {
         private static final Map<String, Integer> GRAVITY = new HashMap<>();
         static {
             GRAVITY.put("left", Gravity.LEFT);
@@ -51,10 +50,12 @@ public class Slide {
             GRAVITY.put("ne", Gravity.RIGHT | Gravity.TOP);
             GRAVITY.put("se", Gravity.RIGHT | Gravity.BOTTOM);
         }
-        private final String url;
-        private final float scale;
-        private final int gravity;
-        public Background(String bg) {
+
+        public final String url;
+        public final float scale;
+        public final int gravity;
+
+        Background(String bg) {
             int g = Gravity.CENTER;
             float scale = 1f;
             String url = null;
@@ -65,7 +66,7 @@ public class Slide {
                     } catch (NumberFormatException ignored) {}
                 } else if (GRAVITY.containsKey(part)) {
                     g = GRAVITY.get(part);
-                } else if (part.contains("://")){
+                } else if (part.contains("://")) {
                     url = part;
                 }
             }
@@ -75,10 +76,20 @@ public class Slide {
         }
     }
 
-    private final List<Background> backgrounds = new ArrayList<>();
-    private final SpannableStringBuilder text = new SpannableStringBuilder();
+    public final List<Background> backgrounds;
+    public final String text;
+    public final List<Span> spans;
 
-    private Slide(String s) {
+    private Slide(List<Background> backgrounds, String text, List<Span> spans) {
+        this.backgrounds = Collections.unmodifiableList(backgrounds);
+        this.text = text;
+        this.spans = Collections.unmodifiableList(spans);
+    }
+
+    static Slide parseOne(String s) {
+        List<Background> backgrounds = new ArrayList<>();
+        List<Span> spans = new ArrayList<>();
+        StringBuilder text = new StringBuilder();
         int emSpanStart = -1;
         for (String line : s.split("\n")) {
             if (line.startsWith("@")) {
@@ -86,21 +97,15 @@ public class Slide {
             } else if (line.startsWith("#")) {
                 int start = text.length();
                 text.append(line.substring(1)).append('\n');
-                text.setSpan(new RelativeSizeSpan(1.6f), start, text.length(), 0);
-                text.setSpan(new StyleSpan(Typeface.BOLD), start, text.length(), 0);
+                spans.add(new Span(SPAN_HEADER, start, text.length()));
             } else if (line.startsWith("  ")) {
                 int start = text.length();
                 text.append(line.substring(2)).append('\n');
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    text.setSpan(new TypefaceSpan(Typeface.MONOSPACE), start, text.length(), 0);
-                } else {
-                    text.setSpan(new TypefaceSpan("monospace"), start, text.length(), 0);
-                }
+                spans.add(new Span(SPAN_CODE, start, text.length()));
             } else {
                 if (line.startsWith(".")) {
                     line = line.substring(1);
                 }
-                // Handle emphasis
                 for (int i = 0; i < line.length(); i++) {
                     char c = line.charAt(i);
                     if (c == '*') {
@@ -108,7 +113,7 @@ public class Slide {
                             emSpanStart = text.length();
                         } else {
                             if (emSpanStart != text.length()) {
-                                text.setSpan(new StyleSpan(Typeface.BOLD), emSpanStart, text.length(), 0);
+                                spans.add(new Span(SPAN_BOLD, emSpanStart, text.length()));
                             } else {
                                 text.append('*');
                             }
@@ -122,167 +127,60 @@ public class Slide {
             }
         }
         if (text.length() > 0 && text.charAt(text.length() - 1) == '\n') {
-            text.delete(text.length() - 1, text.length());
+            text.setLength(text.length() - 1);
         }
-    }
-
-    // Slides are re-parsed on every state change, so loaded bitmaps are cached
-    // statically by URL and size to avoid starting a new request on each redraw.
-    private static class CacheTarget extends CustomTarget<Bitmap> {
-        private static final int MAX_ENTRIES = 16;
-        private static final Map<String, CacheTarget> CACHE =
-                new LinkedHashMap<String, CacheTarget>(MAX_ENTRIES, 0.75f, true) {
-                    @Override
-                    protected boolean removeEldestEntry(Map.Entry<String, CacheTarget> eldest) {
-                        if (size() > MAX_ENTRIES) {
-                            Glide.with(eldest.getValue().context).clear(eldest.getValue());
-                            return true;
-                        }
-                        return false;
-                    }
-                };
-
-        private final Context context;
-        private final String key;
-        private Bitmap bitmap;
-        private boolean loadingSynchronously;
-
-        private CacheTarget(Context context, String key) {
-            this.context = context;
-            this.key = key;
-        }
-
-        static Bitmap get(Context context, RequestBuilder<Bitmap> request, String key) {
-            CacheTarget target = CACHE.get(key);
-            if (target == null) {
-                target = new CacheTarget(context, key);
-                CACHE.put(key, target);
-                // Glide delivers memory-cache hits synchronously from into().
-                target.loadingSynchronously = true;
-                request.into(target);
-                target.loadingSynchronously = false;
-            }
-            return target.bitmap;
-        }
-
-        @Override
-        public void onResourceReady(Bitmap resource, Transition<? super Bitmap> transition) {
-            bitmap = resource;
-            if (!loadingSynchronously) {
-                Anvil.render();
+        int length = text.length();
+        List<Span> clamped = new ArrayList<>();
+        for (Span span : spans) {
+            int end = Math.min(span.end, length);
+            if (span.start < end) {
+                clamped.add(new Span(span.type, span.start, end));
             }
         }
-
-        @Override
-        public void onLoadFailed(Drawable errorDrawable) {
-            CACHE.remove(key);
-        }
-
-        @Override
-        public void onLoadCleared(Drawable placeholder) {
-            bitmap = null;
-        }
-    }
-
-    public void render(Context c, Canvas canvas, int width, int height, String typeface, int fg, int bg, boolean blocking) {
-        TextPaint textPaint = new TextPaint();
-        canvas.drawColor(bg);
-        textPaint.setColor(fg);
-        textPaint.setAntiAlias(true);
-        textPaint.setTypeface(Typeface.create(typeface, 0));
-
-        Context app = c.getApplicationContext();
-        for (Background img: backgrounds) {
-            if (img.url == null) {
-                continue;
-            }
-            float scale = img.scale > 0 ? img.scale : 1f;
-            int targetWidth = (int) (width * scale);
-            int targetHeight = (int) (height * scale);
-            RequestBuilder<Bitmap> request = Glide.with(app)
-                    .asBitmap()
-                    .load(img.url)
-                    .override(targetWidth, targetHeight)
-                    .centerInside();
-            if (blocking) {
-                FutureTarget<Bitmap> future = request.submit();
-                try {
-                    drawBackground(canvas, future.get(), img.gravity, width, height, textPaint);
-                } catch (ExecutionException | InterruptedException e) {
-                    e.printStackTrace();
-                } finally {
-                    Glide.with(app).clear(future);
-                }
-            } else {
-                String key = img.url + "@" + targetWidth + "x" + targetHeight;
-                drawBackground(canvas, CacheTarget.get(app, request, key), img.gravity, width, height, textPaint);
-            }
-        }
-
-        float margin = 0.1f;
-
-        int w = (int) (width * (1 - margin * 2));
-        int h = (int) (height * (1 - margin * 2));
-
-
-        for (int textSize = height; textSize > 1 ; textSize--) {
-            textPaint.setTextSize(textSize);
-            if (StaticLayout.getDesiredWidth(text, textPaint) <= w) {
-                StaticLayout layout = createStaticLayout(text, textPaint, w);
-                if (layout.getHeight() >= h) {
-                    continue;
-                }
-                int l = 0;
-                for (int i = 0; i < layout.getLineCount(); i++) {
-                    int m = (int) (width - layout.getLineWidth(i))/2;
-                    if (i == 0 || m < l) {
-                        l = m;
-                    }
-                }
-                canvas.translate(l, (height - layout.getHeight())/2);
-
-                textPaint.setColor(bg);
-                textPaint.setStyle(Paint.Style.STROKE);
-                textPaint.setStrokeWidth(8);
-                layout = createStaticLayout(text, textPaint, w);
-                layout.draw(canvas);
-                textPaint.setColor(fg);
-                textPaint.setStyle(Paint.Style.FILL);
-                textPaint.setStrokeWidth(0);
-                layout = createStaticLayout(text, textPaint, w);
-                layout.draw(canvas);
-                return;
-            }
-        }
-    }
-
-    private static void drawBackground(Canvas canvas, Bitmap b, int gravity, int width, int height, Paint paint) {
-        if (b == null) {
-            return;
-        }
-        Rect r = new Rect();
-        Gravity.apply(gravity, b.getWidth(), b.getHeight(), new Rect(0, 0, width, height), r);
-        canvas.drawBitmap(b, r.left, r.top, paint);
-    }
-
-    private static StaticLayout createStaticLayout(CharSequence text, TextPaint paint, int width) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return StaticLayout.Builder.obtain(text, 0, text.length(), paint, width)
-                    .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-                    .setLineSpacing(0, 1)
-                    .setIncludePad(false)
-                    .build();
-        } else {
-            return new StaticLayout(text, paint, width, Layout.Alignment.ALIGN_NORMAL, 1, 0, false);
-        }
+        return new Slide(backgrounds, text.toString(), clamped);
     }
 
     public static List<Slide> parse(String s) {
         List<Slide> slides = new ArrayList<>();
-        String[] paragraphs = s.split("(\n\\s*){2,}");
-        for (String par : paragraphs) {
-            slides.add(new Slide(par));
+        for (String par : PARAGRAPH_SEPARATOR.split(s)) {
+            slides.add(parseOne(par));
         }
         return slides;
+    }
+
+    public static int count(String s) {
+        return Math.max(1, PARAGRAPH_SEPARATOR.split(s).length);
+    }
+
+    // Index of the slide that contains the given cursor position. A separator at
+    // the very end of the text does not start a slide, matching parse().
+    public static int pageAt(String text, int cursor) {
+        int c = Math.max(0, Math.min(cursor, text.length()));
+        int page = 0;
+        Matcher m = PARAGRAPH_SEPARATOR.matcher(text);
+        while (m.find() && m.end() <= c) {
+            if (m.end() < text.length()) {
+                page++;
+            }
+        }
+        return page;
+    }
+
+    // Offset of the first character of the given slide. Slide N starts right
+    // after the N-th separator, which also holds for a leading separator
+    // because parse() turns it into an empty first slide.
+    public static int offsetOf(String text, int page) {
+        if (page <= 0) {
+            return 0;
+        }
+        Matcher m = PARAGRAPH_SEPARATOR.matcher(text);
+        int found = 0;
+        while (m.find()) {
+            found++;
+            if (found == page) {
+                return m.end();
+            }
+        }
+        return text.length();
     }
 }

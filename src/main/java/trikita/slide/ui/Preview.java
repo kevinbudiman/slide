@@ -6,44 +6,64 @@ import android.view.View;
 
 import java.util.List;
 
-import trikita.slide.App;
 import trikita.slide.Slide;
+import trikita.slide.SlideRenderer;
+import trikita.slide.State;
 
 public class Preview extends View {
 
+    private State mState;
     private int mPageOffset = 0;
+    private int mFixedPage = -1;
+    private final Runnable mInvalidate = this::invalidate;
 
     public Preview(Context context) {
         super(context);
     }
 
-    public void setPageOffset(int offset) {
-        mPageOffset = offset;
+    public void setState(State state) {
+        mState = state;
+        invalidate();
     }
 
+    // Shows the slide this many pages after the current one.
+    public void setPageOffset(int offset) {
+        mPageOffset = offset;
+        invalidate();
+    }
+
+    // Shows a specific slide regardless of the current page.
+    public void setFixedPage(int page) {
+        mFixedPage = page;
+        invalidate();
+    }
+
+    @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int w = MeasureSpec.getSize(widthMeasureSpec);
         int h = MeasureSpec.getSize(heightMeasureSpec);
-        if ((w * 9/16) > h) {
-            w = h * 16/9;
+        if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED || w * 9 / 16 <= h) {
+            h = w * 9 / 16;
         } else {
-            h = w * 9/16;
+            w = h * 16 / 9;
         }
         super.onMeasure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(h, MeasureSpec.EXACTLY));
     }
 
+    @Override
     protected void onDraw(Canvas canvas) {
-        List<Slide> slides = App.getState().slides();
-        int page = App.getState().page() + mPageOffset;
+        if (mState == null) {
+            return;
+        }
+        int[] colors = Style.scheme(mState.colorScheme());
+        List<Slide> slides = mState.slides();
+        int page = mFixedPage >= 0 ? mFixedPage : mState.page() + mPageOffset;
         if (page >= 0 && page < slides.size()) {
-            slides.get(page).render(getContext(), canvas, getWidth(), getHeight(),
-                    Style.SLIDE_FONT,
-                    Style.COLOR_SCHEMES[App.getState().colorScheme()][0],
-                    Style.COLOR_SCHEMES[App.getState().colorScheme()][1],
-                    false);
+            SlideRenderer.render(getContext(), slides.get(page), canvas, getWidth(), getHeight(),
+                    Style.SLIDE_FONT, colors[0], colors[1], false, mInvalidate);
         } else {
-            canvas.drawColor(Style.COLOR_SCHEMES[App.getState().colorScheme()][1]);
+            canvas.drawColor(colors[1]);
         }
     }
 }

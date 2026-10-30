@@ -46,14 +46,9 @@ android {
 dependencies {
     implementation project(':jedux')
 
-    implementation 'androidx.annotation:annotation:1.7.1'
-    implementation 'co.trikita:anvil-sdk19:0.3.1'
-
     implementation 'com.github.bumptech.glide:glide:4.16.0'
 
-    implementation 'org.immutables:gson:2.1.14'
-    annotationProcessor 'org.immutables:value:2.1.14'
-    compileOnly 'org.immutables:value:2.1.14'
+    testImplementation 'junit:junit:4.13.2'
 }
 
 apply from: 'signing.gradle'

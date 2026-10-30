@@ -2,21 +2,21 @@ package trikita.slide;
 
 public enum ActionType {
     SET_TEXT,
+    SET_CURSOR,
 
     OPEN_PRESENTATION,
     CLOSE_PRESENTATION,
-
     TOGGLE_TOOLBAR,
-
-    SET_CURSOR,
     NEXT_PAGE,
     PREV_PAGE,
 
-    OPEN_DOCUMENT,
-    LOAD_DOCUMENT,
-    PICK_IMAGE,
-    INSERT_IMAGE,
     SET_COLOR_SCHEME,
-    CREATE_PDF,
-    EXPORT_PDF
+
+    // Document actions carry the document URI as a String.
+    NEW_DOCUMENT,
+    OPEN_DOCUMENT,
+    SAVE_DOCUMENT_AS,
+    DOCUMENT_LOADED,    // value: State.LoadedDocument
+    INSERT_IMAGE,       // value: image URI as a String
+    EXPORT_PDF,
 }

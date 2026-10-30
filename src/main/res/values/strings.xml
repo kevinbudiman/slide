@@ -8,15 +8,25 @@
     <string name="failed_export_pdf">Failed to export to PDF</string>
     <string name="default_new_doc_name">NewSlideDoc</string>
     <string name="failed_open_doc">Failed to open a document</string>
-    <string name="failed_save_doc">Failed to found a document</string>
+    <string name="failed_save_doc">Failed to save the document</string>
 
     <string name="dlg_style_picker_title">Pick a style</string>
     <string name="btn_ok">Ok</string>
 
-    <string name="om_open">Open</string>
+    <string name="om_open">Open…</string>
     <string name="om_insert_image">Insert image</string>
     <string name="om_style">Style</string>
-    <string name="om_settings">Settings</string>
     <string name="om_export_pdf">Export to PDF</string>
     <string name="next_slide">Next</string>
+    <string name="om_new">New</string>
+    <string name="om_recent">Recent</string>
+    <string name="om_save_as">Save as…</string>
+    <string name="dlg_discard_message">This presentation is not saved to a file. Discard it?</string>
+    <string name="btn_discard">Discard</string>
+    <string name="no_file_picker">No app found to pick a file</string>
+    <string name="no_recent_documents">No recent documents</string>
+    <string name="cd_menu">More options</string>
+    <string name="cd_close_presentation">Close presentation</string>
+    <string name="cd_start_presentation">Start presentation</string>
+    <string name="cd_color_scheme">Color scheme %1$d</string>
 </resources>

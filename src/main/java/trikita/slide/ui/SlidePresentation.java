@@ -4,15 +4,17 @@ import android.app.Presentation;
 import android.content.Context;
 import android.os.Bundle;
 import android.view.Display;
+import android.view.Gravity;
+import android.widget.FrameLayout;
 
-import trikita.anvil.Anvil;
-import trikita.anvil.RenderableView;
-import trikita.slide.App;
-
-import static trikita.anvil.DSL.*;
+import trikita.slide.State;
 
 // Shows the current slide full screen on an external display (HDMI, Cast, etc).
 public class SlidePresentation extends Presentation {
+
+    private FrameLayout mRoot;
+    private Preview mPreview;
+    private State mPendingState;
 
     public SlidePresentation(Context outerContext, Display display) {
         super(outerContext, display);
@@ -21,20 +23,22 @@ public class SlidePresentation extends Presentation {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(new RenderableView(getContext()) {
-            @Override
-            public void view() {
-                frameLayout(() -> {
-                    size(FILL, FILL);
-                    Style.Preview.background(App.getState().colorScheme());
+        mRoot = new FrameLayout(getContext());
+        mPreview = new Preview(getContext());
+        mRoot.addView(mPreview, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+        setContentView(mRoot);
+        if (mPendingState != null) {
+            render(mPendingState);
+        }
+    }
 
-                    v(Preview.class, () -> {
-                        size(FILL, WRAP);
-                        layoutGravity(CENTER);
-                        Anvil.currentView().invalidate();
-                    });
-                });
-            }
-        });
+    public void render(State s) {
+        if (mRoot == null) {
+            mPendingState = s;
+            return;
+        }
+        mRoot.setBackgroundColor(Style.scheme(s.colorScheme())[1]);
+        mPreview.setState(s);
     }
 }

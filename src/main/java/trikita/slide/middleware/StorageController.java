@@ -1,236 +1,199 @@
 package trikita.slide.middleware;
 
-import android.app.Activity;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.pdf.PdfDocument;
 import android.net.Uri;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.Looper;
-import android.os.ParcelFileDescriptor;
 import android.widget.Toast;
 
-import java.io.BufferedReader;
-import java.io.FileOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Locale;
-import java.util.TimeZone;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.Executor;
 
 import trikita.jedux.Action;
 import trikita.jedux.Store;
 import trikita.slide.ActionType;
 import trikita.slide.App;
+import trikita.slide.PdfExporter;
 import trikita.slide.R;
-import trikita.slide.Slide;
 import trikita.slide.State;
-import trikita.slide.ui.Style;
 
+// Keeps the attached text document in sync with the editor and performs all
+// document I/O on a background executor.
 public class StorageController implements Store.Middleware<Action<ActionType, ?>, State> {
-    public static final int OPEN_DOCUMENT_REQUEST_CODE = 43;
-    public static final int PICK_IMAGE_REQUEST_CODE = 44;
-    public static final int EXPORT_PDF_REQUEST_CODE = 46;
 
-    private static final long FILE_WRITER_DELAY = 3000; // 3sec
+    private static final long SAVE_DELAY_MS = 3000;
 
-    private Context mContext = null;
-    private final Handler mHandler;
-    private final ExecutorService mExecutor = Executors.newSingleThreadExecutor();
-    private final Handler mMainHandler = new Handler(Looper.getMainLooper());
+    private final Context mContext;
+    private final Executor mIo;
+    private final Handler mMain = new Handler(Looper.getMainLooper());
+    private Store<Action<ActionType, ?>, State> mStore;
+    private boolean mSavePending;
+    private final Runnable mSaver = this::flush;
 
-    private final Runnable mDocUpdater = () -> {
-        if (App.getState().uri() != null) {
-            try {
-                int flags = (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-                mContext.getContentResolver().takePersistableUriPermission(Uri.parse(App.getState().uri()), flags);
-                saveDocument();
-            } catch (SecurityException e) {
-                e.printStackTrace();
-                Toast.makeText(mContext, mContext.getString(R.string.failed_save_doc), Toast.LENGTH_LONG).show();
-            }
-        }
-    };
-
-    public StorageController(Context c) {
-        mContext = c;
-        HandlerThread ht = new HandlerThread("document_backup");
-        ht.start();
-        mHandler = new Handler(ht.getLooper());
+    public StorageController(Context c, Executor io) {
+        mContext = c.getApplicationContext();
+        mIo = io;
     }
 
     @Override
-    public void dispatch(Store<Action<ActionType, ?>, State> store, Action<ActionType, ?> action, Store.NextDispatcher<Action<ActionType, ?>> next) {
-        if (action.type == ActionType.SET_TEXT) {
-            dumpToFile(true);
-        } else if (action.type == ActionType.CREATE_PDF) {
-            dumpToFile(false);
-            createPdf((Activity) action.value);
-            return;
-        } else if (action.type == ActionType.EXPORT_PDF) {
-            exportPdf(store, (Uri) action.value);
-            return;
-        } else if (action.type == ActionType.PICK_IMAGE) {
-            pickImage((Activity) action.value);
-            return;
-        } else if (action.type == ActionType.INSERT_IMAGE) {
-            String s = store.getState().text();
-            int c = store.getState().cursor();
-            String chunk = s.substring(0, c);
-            int startOfLine = chunk.lastIndexOf("\n");
-            if (startOfLine == -1) {
-                startOfLine = 0;
-                s = "@"+(action.value).toString()+"\n"+s;
-            } else {
-                s = s.substring(0, startOfLine+1)+"@"+(action.value).toString()+"\n"+s.substring(startOfLine+1);
-            }
-            App.dispatch(new Action<>(ActionType.SET_TEXT, s));
-            App.dispatch(new Action<>(ActionType.SET_CURSOR, startOfLine));
-            return;
-        } else if (action.type == ActionType.OPEN_DOCUMENT) {
-            dumpToFile(false);
-            openDocument((Activity) action.value);
-            return;
-        } else if (action.type == ActionType.LOAD_DOCUMENT) {
-            String doc = loadDocument((Uri) action.value);
-            if (doc != null) {
-                App.dispatch(new Action<>(ActionType.SET_TEXT, doc));
-                App.dispatch(new Action<>(ActionType.SET_CURSOR, 0));
-            } else {
-                Toast.makeText(mContext, mContext.getString(R.string.failed_open_doc), Toast.LENGTH_LONG).show();
-            }
+    public void dispatch(Store<Action<ActionType, ?>, State> store, Action<ActionType, ?> action,
+                         Store.NextDispatcher<Action<ActionType, ?>> next) {
+        mStore = store;
+        State before = store.getState();
+        switch (action.type) {
+            case OPEN_DOCUMENT:
+                flush();
+                takePermission((String) action.value, true);
+                load((String) action.value);
+                return;
+            case EXPORT_PDF:
+                exportPdf(before, Uri.parse((String) action.value));
+                return;
+            case NEW_DOCUMENT:
+            case SAVE_DOCUMENT_AS:
+                flush();
+                takePermission((String) action.value, true);
+                break;
+            case DOCUMENT_LOADED:
+                flush();
+                break;
+            case INSERT_IMAGE:
+                takePermission((String) action.value, false);
+                break;
+            default:
+                break;
         }
+
         next.dispatch(action);
-    }
+        State after = store.getState();
 
-    public void dumpToFile(boolean withDelay) {
-        mHandler.removeCallbacksAndMessages(null);
-        if (withDelay) {
-            mHandler.postDelayed(mDocUpdater, FILE_WRITER_DELAY);
-        } else {
-            mHandler.post(mDocUpdater);
-        }
-    }
-
-    private void saveDocument() {
-        ParcelFileDescriptor pfd = null;
-        try {
-            Uri uri = Uri.parse(App.getState().uri());
-            pfd = mContext.getContentResolver().openFileDescriptor(uri, "w");
-            FileOutputStream fos = null;
-            if (pfd != null) {
-                fos = new FileOutputStream(pfd.getFileDescriptor());
-                fos.getChannel().truncate(0);
-                fos.write((App.getState().text() + "\n").getBytes());
-                fos.close();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (pfd != null) {
-                try { pfd.close(); } catch (IOException e) {}
-            }
-        }
-    }
-
-    private void openDocument(Activity a) {
-        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("text/plain");
-        intent.putExtra(Intent.EXTRA_TITLE, a.getString(R.string.default_new_doc_name));
-        a.startActivityForResult(intent, OPEN_DOCUMENT_REQUEST_CODE);
-    }
-
-    private String loadDocument(Uri uri) {
-        InputStream is = null;
-        try {
-            is = mContext.getContentResolver().openInputStream(uri);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-            StringBuilder builder = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                builder.append(line);
-                builder.append("\n");
-            }
-            return builder.toString();
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        } finally {
-            if (is != null) {
-                try { is.close(); } catch (IOException e) {}
-            }
-        }
-    }
-
-    private void createPdf(Activity a) {
-        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("application/pdf");
-        intent.putExtra(Intent.EXTRA_TITLE, a.getString(R.string.pdf_name_prefix)+getTimestamp());
-        a.startActivityForResult(intent, EXPORT_PDF_REQUEST_CODE);
-    }
-
-    private void exportPdf(Store<Action<ActionType, ?>, State> store, Uri uri) {
-        mExecutor.execute(() -> {
-            PdfDocument document = new PdfDocument();
-            ParcelFileDescriptor pfd = null;
-            boolean ok = false;
-            try {
-                PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(640, 640 * 9 / 16, 1).create();
-
-                for (Slide slide : store.getState().slides()) {
-                    PdfDocument.Page page = document.startPage(pageInfo);
-                    page.getCanvas().drawColor(Style.COLOR_SCHEMES[store.getState().colorScheme()][1]);
-                    slide.render(mContext,
-                            page.getCanvas(),
-                            page.getCanvas().getWidth(), page.getCanvas().getHeight(),
-                            Style.SLIDE_FONT,
-                            Style.COLOR_SCHEMES[App.getState().colorScheme()][0],
-                            Style.COLOR_SCHEMES[App.getState().colorScheme()][1],
-                            true);
-                    document.finishPage(page);
+        switch (action.type) {
+            case NEW_DOCUMENT:
+            case SAVE_DOCUMENT_AS:
+                App.getRecentDocuments().add(after.uri());
+                save(after);
+                break;
+            case DOCUMENT_LOADED:
+                App.getRecentDocuments().add(after.uri());
+                break;
+            default:
+                if (after.uri() != null && !after.text().equals(before.text())) {
+                    mSavePending = true;
+                    mMain.removeCallbacks(mSaver);
+                    mMain.postDelayed(mSaver, SAVE_DELAY_MS);
                 }
+        }
+    }
 
-                pfd = mContext.getContentResolver().openFileDescriptor(uri, "w");
-                if (pfd != null) {
-                    FileOutputStream fos = new FileOutputStream(pfd.getFileDescriptor());
-                    document.writeTo(fos);
-                    fos.close();
-                    ok = true;
-                }
-            } catch (IOException e) {
+    // Writes any pending change to the attached document right away.
+    public void flush() {
+        mMain.removeCallbacks(mSaver);
+        if (mSavePending && mStore != null) {
+            mSavePending = false;
+            save(mStore.getState());
+        }
+    }
+
+    // Persisting lets the app reopen documents and images after a restart.
+    private void takePermission(String uri, boolean write) {
+        int flags = Intent.FLAG_GRANT_READ_URI_PERMISSION;
+        if (write) {
+            flags |= Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
+        }
+        try {
+            mContext.getContentResolver().takePersistableUriPermission(Uri.parse(uri), flags);
+        } catch (SecurityException e) {
+            // Not every provider offers persistable grants; the current grant still works.
+            e.printStackTrace();
+        }
+    }
+
+    private void save(State state) {
+        if (state.uri() == null) {
+            return;
+        }
+        Uri uri = Uri.parse(state.uri());
+        String text = state.text();
+        byte[] data = (text.endsWith("\n") ? text : text + "\n").getBytes(StandardCharsets.UTF_8);
+        mIo.execute(() -> {
+            try (OutputStream out = openForWriting(mContext.getContentResolver(), uri)) {
+                out.write(data);
+            } catch (IOException | SecurityException | IllegalArgumentException e) {
                 e.printStackTrace();
-            } finally {
-                document.close();
-                if (pfd != null) {
-                    try { pfd.close(); } catch (IOException ignored) {}
-                }
-            }
-
-            if (!ok) {
-                mMainHandler.post(() ->
-                    Toast.makeText(mContext, mContext.getString(R.string.failed_export_pdf), Toast.LENGTH_LONG).show()
-                );
+                toast(R.string.failed_save_doc);
             }
         });
     }
 
-    private String getTimestamp() {
-        DateFormat df = new SimpleDateFormat("yyyy-MM-dd-HHmm", Locale.US);
-        return df.format(Calendar.getInstance(TimeZone.getDefault()).getTimeInMillis());
+    private void load(String uriString) {
+        Uri uri = Uri.parse(uriString);
+        mIo.execute(() -> {
+            String text = null;
+            try (InputStream in = mContext.getContentResolver().openInputStream(uri)) {
+                if (in != null) {
+                    text = readText(in);
+                }
+            } catch (IOException | SecurityException e) {
+                e.printStackTrace();
+            }
+            String loaded = text;
+            mMain.post(() -> {
+                if (loaded != null) {
+                    App.dispatch(new Action<>(ActionType.DOCUMENT_LOADED,
+                            new State.LoadedDocument(uriString, loaded)));
+                } else {
+                    Toast.makeText(mContext, R.string.failed_open_doc, Toast.LENGTH_LONG).show();
+                }
+            });
+        });
     }
 
-    private void pickImage(Activity a) {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("image/*");
-        a.startActivityForResult(intent, PICK_IMAGE_REQUEST_CODE);
+    private void exportPdf(State state, Uri uri) {
+        mIo.execute(() -> {
+            try (OutputStream out = openForWriting(mContext.getContentResolver(), uri)) {
+                PdfExporter.write(mContext, state, out);
+            } catch (IOException | SecurityException | IllegalArgumentException e) {
+                e.printStackTrace();
+                toast(R.string.failed_export_pdf);
+            }
+        });
+    }
+
+    // "wt" truncates existing content; some providers only support "w".
+    public static OutputStream openForWriting(ContentResolver resolver, Uri uri) throws IOException {
+        OutputStream out;
+        try {
+            out = resolver.openOutputStream(uri, "wt");
+        } catch (FileNotFoundException | IllegalArgumentException | UnsupportedOperationException e) {
+            out = resolver.openOutputStream(uri, "w");
+        }
+        if (out == null) {
+            throw new FileNotFoundException(uri.toString());
+        }
+        return out;
+    }
+
+    // Line endings are normalized and the single trailing newline added on save is
+    // dropped, so saving and reopening a document leaves it unchanged.
+    static String readText(InputStream in) throws IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        byte[] chunk = new byte[8192];
+        int n;
+        while ((n = in.read(chunk)) != -1) {
+            buffer.write(chunk, 0, n);
+        }
+        String text = new String(buffer.toByteArray(), StandardCharsets.UTF_8).replace("\r\n", "\n");
+        return text.endsWith("\n") ? text.substring(0, text.length() - 1) : text;
+    }
+
+    private void toast(int message) {
+        mMain.post(() -> Toast.makeText(mContext, message, Toast.LENGTH_LONG).show());
     }
 }

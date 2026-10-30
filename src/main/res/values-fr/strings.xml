@@ -8,15 +8,25 @@
   <string name="failed_export_pdf">L\'export au format PDF a échoué</string>
   <string name="default_new_doc_name">NewSlideDoc</string>
   <string name="failed_open_doc">L\'ouverture du document a échoué</string>
-  <string name="failed_save_doc">Le document n\'a pas été trouvé</string>
+  <string name="failed_save_doc">L\'enregistrement du document a échoué</string>
   
   <string name="dlg_style_picker_title">Choisir un style</string>
   <string name="btn_ok">Ok</string>
   
-  <string name="om_open">Ouvrir</string>
+  <string name="om_open">Ouvrir…</string>
   <string name="om_insert_image">Insérer une image</string>
   <string name="om_style">Style</string>
-  <string name="om_settings">Réglages</string>
   <string name="om_export_pdf">Exporter en PDF</string>
   <string name="next_slide">Suivante</string>
+  <string name="om_new">Nouveau</string>
+  <string name="om_recent">Récents</string>
+  <string name="om_save_as">Enregistrer sous…</string>
+  <string name="dlg_discard_message">Cette présentation n\'est pas enregistrée dans un fichier. L\'abandonner ?</string>
+  <string name="btn_discard">Abandonner</string>
+  <string name="no_file_picker">Aucune application pour choisir un fichier</string>
+  <string name="no_recent_documents">Aucun document récent</string>
+  <string name="cd_menu">Plus d\'options</string>
+  <string name="cd_close_presentation">Fermer la présentation</string>
+  <string name="cd_start_presentation">Lancer la présentation</string>
+  <string name="cd_color_scheme">Palette %1$d</string>
 </resources>

@@ -1,22 +1,19 @@
 package trikita.slide.ui;
 
 import android.content.Context;
-import android.graphics.Typeface;
-import android.graphics.drawable.ShapeDrawable;
-import android.graphics.drawable.shapes.OvalShape;
+import android.content.res.ColorStateList;
+import android.content.res.TypedArray;
 import android.os.Build;
-import android.view.Gravity;
-import android.view.View;
+import android.util.TypedValue;
+import android.widget.ImageView;
 
-import static trikita.anvil.DSL.*;
-
-import trikita.anvil.Anvil;
 import trikita.slide.R;
 
-public class Style {
-    public final static String SLIDE_FONT = "sans-serif-light";
+public final class Style {
+    public static final String SLIDE_FONT = "sans-serif-light";
 
-    public final static int COLOR_SCHEMES[][] = {
+    // {text color, background color, close button drawable, close icon color}
+    public static final int[][] COLOR_SCHEMES = {
         {0xff333333, 0xffeeeeee, R.drawable.dark_round_button, 0xffeeeeee},    // dark gray on white
         {0xfffefefe, 0xff333333, R.drawable.light_round_button, 0xff333333},    // white on dark gray
         {0xffffffff, 0xffe51c23, R.drawable.light_round_button, 0xff333333},    // white on red
@@ -31,104 +28,35 @@ public class Style {
         {0xffffffff, 0xffe91e63, R.drawable.light_round_button, 0xff333333},    // white on pink
     };
 
-    private final static int CLOSE_BUTTON = 0;
-    private final static int MENU_BUTTON = 1;
-    private final static int CHECK_BUTTON = 2;
+    public static final int PRESENTER_BACKGROUND = 0xff111111;
+    public static final int PRESENTER_TEXT = 0xffcccccc;
 
-    private final static String[] ICONS = { "\ue5cd", "\ue5d4", "\ue876" };
+    private Style() {}
 
-    public static class Editor {
-        public static void background() {
-            size(FILL, FILL);
-            fitsSystemWindows(true);
-            padding(dip(8));
-            backgroundColor(color(R.color.editor_background));
-        }
-
-        public static void textStyle() {
-            textColor(color(R.color.editor_text));
-            typeface(Typeface.create("sans-serif-light", 0));
-        }
-        
-        public static void previewSize() {
-            size(dip(144), WRAP);
-        }
-
-        public static void previewContainer() {
-            size(WRAP, WRAP);
-            alignParentEnd();
-            alignParentBottom();
-            margin(dip(12));
-            padding(dip(1), dip(1), dip(2), dip(2));
-            backgroundResource(R.drawable.preview_bg);
-        }
-
-        public static void menuButton() {
-            size(dip(32), dip(32));
-            alignParentEnd();
-            alignParentTop();
-            margin(dip(12));
-            gravity(Gravity.CENTER);
-            text(ICONS[MENU_BUTTON]);
-            typeface("MaterialIcons-Regular.ttf");
-            textSize(sip(26));
-            textColor(color(R.color.editor_menu_button));
-        }
+    public static int[] scheme(int index) {
+        return COLOR_SCHEMES[Math.max(0, Math.min(index, COLOR_SCHEMES.length - 1))];
     }
 
-    private static int color(int id) {
-        Context c = Anvil.currentView().getContext();
+    public static int color(Context c, int id) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             return c.getColor(id);
         }
         return c.getResources().getColor(id);
     }
 
-    public static class StylePicker {
-        public static void circle(int fgColor, int bgColor) {
-            ShapeDrawable circle = new ShapeDrawable(new OvalShape());
-            circle.getPaint().setColor(bgColor);
-            backgroundDrawable(circle);
-
-            size(dip(48), dip(48));
-            layoutGravity(CENTER_HORIZONTAL);
-            gravity(CENTER);
-            textColor(fgColor);
-        }
-
-        public static void itemNormal() {
-            text("A");
-            textSize(sip(20));
-            typeface(Typeface.create(SLIDE_FONT, Typeface.NORMAL));
-        }
-
-        public static void itemSelected() {
-            text(ICONS[CHECK_BUTTON]);
-            textSize(sip(24));
-            typeface("MaterialIcons-Regular.ttf");
-        }
+    public static int dip(Context c, float dp) {
+        return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp,
+                c.getResources().getDisplayMetrics());
     }
 
-    public static class Preview {
-        public static void background(int scheme) {
-            backgroundColor(COLOR_SCHEMES[scheme][1]);
-        }
+    public static void tint(ImageView v, int color) {
+        v.setImageTintList(ColorStateList.valueOf(color));
+    }
 
-        public static void touchPlaceholder(View.OnClickListener l) {
-            v(View.class, () -> {
-                size(0, FILL);
-                weight(1f);
-                onClick(l);
-            });
-        }
-
-        public static void button(int scheme) {
-            size(dip(54), dip(54));
-            text(ICONS[CLOSE_BUTTON]);
-            textSize(sip(30));
-            textColor(COLOR_SCHEMES[scheme][3]);
-            typeface("MaterialIcons-Regular.ttf");
-            backgroundResource(COLOR_SCHEMES[scheme][2]);
-        }
+    public static void borderlessRipple(android.view.View v) {
+        TypedArray a = v.getContext().obtainStyledAttributes(
+                new int[]{android.R.attr.selectableItemBackgroundBorderless});
+        v.setBackground(a.getDrawable(0));
+        a.recycle();
     }
 }

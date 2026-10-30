@@ -1,210 +1,271 @@
 package trikita.slide.ui;
 
-import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Context;
+import android.graphics.Insets;
+import android.graphics.Typeface;
+import android.os.Build;
+import android.text.Editable;
+import android.text.TextUtils;
+import android.text.TextWatcher;
+import android.view.Gravity;
 import android.view.View;
+import android.view.WindowInsets;
+import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
-import android.widget.PopupMenu;
+import android.widget.TextView;
 
-import trikita.anvil.Anvil;
-import trikita.anvil.RenderableView;
 import trikita.jedux.Action;
 import trikita.slide.ActionType;
 import trikita.slide.App;
 import trikita.slide.R;
+import trikita.slide.Slide;
+import trikita.slide.State;
 
-import static trikita.anvil.DSL.*;
+public class MainLayout extends FrameLayout {
 
-public class MainLayout extends RenderableView {
+    private static final int MATCH = LayoutParams.MATCH_PARENT;
+    private static final int WRAP = LayoutParams.WRAP_CONTENT;
 
-    private static final int PRESENTER_BACKGROUND = 0xff111111;
-    private static final int PRESENTER_TEXT = 0xffcccccc;
-
+    private final View mEditorScreen;
     private Editor mEditor;
-    private boolean mExternalDisplay = false;
+    private Preview mEditorPreview;
+    private boolean mUpdatingEditor;
 
-    public MainLayout(Context c) {
+    private final View mPresentationScreen;
+    private Preview mPresentationPreview;
+    private ImageButton mPresentationClose;
+
+    private final View mPresenterScreen;
+    private TextView mPresenterCounter;
+    private Preview mPresenterCurrent;
+    private Preview mPresenterNext;
+
+    private boolean mExternalDisplay = false;
+    private State mState;
+
+    public MainLayout(Context c, View.OnClickListener onMenu) {
         super(c);
+        mEditorScreen = buildEditor(c, onMenu);
+        mPresentationScreen = buildPresentation(c);
+        mPresenterScreen = buildPresenter(c);
+        addView(mEditorScreen, MATCH, MATCH);
+        addView(mPresentationScreen, MATCH, MATCH);
+        addView(mPresenterScreen, MATCH, MATCH);
     }
 
     public void setExternalDisplay(boolean connected) {
         if (mExternalDisplay != connected) {
             mExternalDisplay = connected;
-            Anvil.render();
-        }
-    }
-
-    public void view() {
-        if (App.getState().presentationMode()) {
-            if (mExternalDisplay) {
-                presenter();
-            } else {
-                presentation();
+            if (mState != null) {
+                render(mState);
             }
-        } else {
-            editor();
         }
     }
 
-    private void editor() {
-        relativeLayout(() -> {
-            Style.Editor.background();
+    public void render(State s) {
+        mState = s;
+        boolean presenting = s.presentationMode();
+        mEditorScreen.setVisibility(presenting ? GONE : VISIBLE);
+        mPresentationScreen.setVisibility(presenting && !mExternalDisplay ? VISIBLE : GONE);
+        mPresenterScreen.setVisibility(presenting && mExternalDisplay ? VISIBLE : GONE);
 
-            v(Editor.class, () -> {
-                size(FILL, FILL);
-                gravity(TOP | START);
-                text(App.getState().text());
-                Style.Editor.textStyle();
-                backgroundDrawable(null);
-                init(() -> {
-                    mEditor = Anvil.currentView();
-                    mEditor.setOnSelectionChangedListener(pos -> {
-                        App.dispatch(new Action<>(ActionType.SET_CURSOR, pos));
-                    });
-                });
-                onTextChanged(chars -> {
-                    String s = chars.toString();
-                    App.dispatch(new Action<>(ActionType.SET_TEXT, s));
+        if (!TextUtils.equals(mEditor.getText(), s.text())) {
+            mUpdatingEditor = true;
+            mEditor.setText(s.text());
+            mEditor.setSelection(Math.min(s.cursor(), s.text().length()));
+            mUpdatingEditor = false;
+        }
+        mEditorPreview.setState(s);
+
+        int[] colors = Style.scheme(s.colorScheme());
+        mPresentationScreen.setBackgroundColor(colors[1]);
+        mPresentationPreview.setState(s);
+        mPresentationClose.setVisibility(s.toolbarShown() ? VISIBLE : GONE);
+        mPresentationClose.setBackgroundResource(colors[2]);
+        Style.tint(mPresentationClose, colors[3]);
+
+        mPresenterCounter.setText((s.page() + 1) + " / " + Slide.count(s.text()));
+        mPresenterCurrent.setState(s);
+        mPresenterNext.setState(s);
+    }
+
+    // Moves the editor cursor to the start of the given slide.
+    public void jumpToPage(int page) {
+        mEditor.requestFocus();
+        mEditor.setSelection(Slide.offsetOf(mEditor.getText().toString(), page));
+    }
+
+    private View buildEditor(Context c, View.OnClickListener onMenu) {
+        FrameLayout root = new FrameLayout(c);
+        root.setBackgroundColor(Style.color(c, R.color.editor_background));
+        padForInsets(root, Style.dip(c, 8), true);
+
+        mEditor = new Editor(c);
+        mEditor.setGravity(Gravity.TOP | Gravity.START);
+        mEditor.setTextColor(Style.color(c, R.color.editor_text));
+        mEditor.setTypeface(Typeface.create(Style.SLIDE_FONT, Typeface.NORMAL));
+        mEditor.setBackground(null);
+        mEditor.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(Editable s) {
+                if (!mUpdatingEditor) {
+                    App.dispatch(new Action<>(ActionType.SET_TEXT, s.toString()));
                     App.dispatch(new Action<>(ActionType.SET_CURSOR, mEditor.getSelectionStart()));
-                });
-            });
-
-            textView(() -> {
-                Style.Editor.menuButton();
-                onClick(this::onOpenMenu);
-            });
-
-            frameLayout(() -> {
-                Style.Editor.previewContainer();
-
-                v(Preview.class, () -> {
-                    Style.Editor.previewSize();
-                    onClick(v -> App.dispatch(new Action<>(ActionType.OPEN_PRESENTATION)));
-                    Anvil.currentView().invalidate();
-                });
-            });
+                }
+            }
         });
+        mEditor.setOnSelectionChangedListener(pos -> {
+            if (!mUpdatingEditor) {
+                App.dispatch(new Action<>(ActionType.SET_CURSOR, pos));
+            }
+        });
+        root.addView(mEditor, MATCH, MATCH);
+
+        mEditorPreview = new Preview(c);
+        mEditorPreview.setContentDescription(c.getString(R.string.cd_start_presentation));
+        mEditorPreview.setOnClickListener(v -> App.dispatch(new Action<>(ActionType.OPEN_PRESENTATION)));
+        FrameLayout frame = previewFrame(c);
+        frame.addView(mEditorPreview, new LayoutParams(Style.dip(c, 144), WRAP));
+        LayoutParams frameParams = new LayoutParams(WRAP, WRAP, Gravity.BOTTOM | Gravity.END);
+        int margin = Style.dip(c, 12);
+        frameParams.setMargins(margin, margin, margin, margin);
+        root.addView(frame, frameParams);
+
+        ImageButton menu = new ImageButton(c);
+        menu.setImageResource(R.drawable.ic_menu);
+        Style.tint(menu, Style.color(c, R.color.editor_menu_button));
+        Style.borderlessRipple(menu);
+        menu.setContentDescription(c.getString(R.string.cd_menu));
+        menu.setOnClickListener(onMenu);
+        int size = Style.dip(c, 48);
+        root.addView(menu, new LayoutParams(size, size, Gravity.TOP | Gravity.END));
+        return root;
+    }
+
+    private View buildPresentation(Context c) {
+        FrameLayout root = new FrameLayout(c);
+
+        mPresentationPreview = new Preview(c);
+        root.addView(mPresentationPreview, new LayoutParams(MATCH, WRAP, Gravity.CENTER));
+
+        LinearLayout zones = new LinearLayout(c);
+        zones.addView(touchZone(c, ActionType.PREV_PAGE), new LinearLayout.LayoutParams(0, MATCH, 1f));
+        zones.addView(touchZone(c, ActionType.TOGGLE_TOOLBAR), new LinearLayout.LayoutParams(0, MATCH, 1f));
+        zones.addView(touchZone(c, ActionType.NEXT_PAGE), new LinearLayout.LayoutParams(0, MATCH, 1f));
+        root.addView(zones, MATCH, MATCH);
+
+        mPresentationClose = closeButton(c);
+        int size = Style.dip(c, 54);
+        LayoutParams closeParams = new LayoutParams(size, size, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        closeParams.bottomMargin = Style.dip(c, 25);
+        root.addView(mPresentationClose, closeParams);
+        return root;
     }
 
     // Shown on the phone while the slide itself is on an external display.
-    private void presenter() {
-        relativeLayout(() -> {
-            size(FILL, FILL);
-            backgroundColor(PRESENTER_BACKGROUND);
+    private View buildPresenter(Context c) {
+        LinearLayout root = new LinearLayout(c);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(Style.PRESENTER_BACKGROUND);
+        padForInsets(root, Style.dip(c, 16), false);
 
-            linearLayout(() -> {
-                size(FILL, FILL);
-                orientation(LinearLayout.VERTICAL);
-                padding(dip(16));
+        LinearLayout header = new LinearLayout(c);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        mPresenterCounter = presenterLabel(c, 18);
+        header.addView(mPresenterCounter, new LinearLayout.LayoutParams(0, WRAP, 1f));
+        ImageButton close = new ImageButton(c);
+        close.setImageResource(R.drawable.ic_close);
+        Style.tint(close, Style.PRESENTER_TEXT);
+        Style.borderlessRipple(close);
+        close.setContentDescription(c.getString(R.string.cd_close_presentation));
+        close.setOnClickListener(v -> App.dispatch(new Action<>(ActionType.CLOSE_PRESENTATION)));
+        int size = Style.dip(c, 48);
+        header.addView(close, new LinearLayout.LayoutParams(size, size));
+        root.addView(header, MATCH, WRAP);
 
-                textView(() -> {
-                    size(FILL, WRAP);
-                    text((App.getState().page() + 1) + " / " + App.getState().slides().size());
-                    textColor(PRESENTER_TEXT);
-                    textSize(sip(18));
-                });
+        FrameLayout current = new FrameLayout(c);
+        mPresenterCurrent = new Preview(c);
+        current.addView(mPresenterCurrent, new LayoutParams(MATCH, WRAP, Gravity.CENTER));
+        LinearLayout zones = new LinearLayout(c);
+        zones.addView(touchZone(c, ActionType.PREV_PAGE), new LinearLayout.LayoutParams(0, MATCH, 1f));
+        zones.addView(touchZone(c, ActionType.NEXT_PAGE), new LinearLayout.LayoutParams(0, MATCH, 1f));
+        current.addView(zones, MATCH, MATCH);
+        LinearLayout.LayoutParams currentParams = new LinearLayout.LayoutParams(MATCH, 0, 2f);
+        currentParams.topMargin = Style.dip(c, 8);
+        root.addView(current, currentParams);
 
-                v(Preview.class, () -> {
-                    size(FILL, 0);
-                    weight(2f);
-                    layoutGravity(CENTER_HORIZONTAL);
-                    margin(0, dip(8));
-                    ((Preview) Anvil.currentView()).setPageOffset(0);
-                    Anvil.currentView().invalidate();
-                });
+        TextView nextLabel = presenterLabel(c, 14);
+        nextLabel.setText(R.string.next_slide);
+        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(MATCH, WRAP);
+        labelParams.topMargin = Style.dip(c, 16);
+        root.addView(nextLabel, labelParams);
 
-                textView(() -> {
-                    size(FILL, WRAP);
-                    text(R.string.next_slide);
-                    textColor(PRESENTER_TEXT);
-                    textSize(sip(14));
-                });
-
-                v(Preview.class, () -> {
-                    size(FILL, 0);
-                    weight(1f);
-                    layoutGravity(CENTER_HORIZONTAL);
-                    margin(0, dip(8), 0, dip(88));
-                    ((Preview) Anvil.currentView()).setPageOffset(1);
-                    Anvil.currentView().invalidate();
-                });
-            });
-
-            linearLayout(() -> {
-                size(FILL, FILL);
-
-                Style.Preview.touchPlaceholder(v -> App.dispatch(new Action<>(ActionType.PREV_PAGE)));
-                Style.Preview.touchPlaceholder(v -> App.dispatch(new Action<>(ActionType.NEXT_PAGE)));
-            });
-
-            button(() -> {
-                Style.Preview.button(App.getState().colorScheme());
-                margin(0, 0, 0, dip(25));
-                alignParentBottom();
-                centerHorizontal();
-                onClick(v -> App.dispatch(new Action<>(ActionType.CLOSE_PRESENTATION)));
-            });
-        });
+        FrameLayout next = new FrameLayout(c);
+        mPresenterNext = new Preview(c);
+        mPresenterNext.setPageOffset(1);
+        mPresenterNext.setOnClickListener(v -> App.dispatch(new Action<>(ActionType.NEXT_PAGE)));
+        next.addView(mPresenterNext, new LayoutParams(MATCH, WRAP, Gravity.CENTER));
+        LinearLayout.LayoutParams nextParams = new LinearLayout.LayoutParams(MATCH, 0, 1f);
+        nextParams.topMargin = Style.dip(c, 8);
+        root.addView(next, nextParams);
+        return root;
     }
 
-    private void presentation() {
-        relativeLayout(() -> {
-            size(FILL, FILL);
-            Style.Preview.background(App.getState().colorScheme());
-
-            v(Preview.class, () -> {
-                size(FILL, WRAP);
-                centerInParent();
-                Anvil.currentView().invalidate();
-            });
-
-            linearLayout(() -> {
-                size(FILL, FILL);
-
-                Style.Preview.touchPlaceholder(v -> App.dispatch(new Action<>(ActionType.PREV_PAGE)));
-                Style.Preview.touchPlaceholder(v -> App.dispatch(new Action<>(ActionType.TOGGLE_TOOLBAR)));
-                Style.Preview.touchPlaceholder(v -> App.dispatch(new Action<>(ActionType.NEXT_PAGE)));
-            });
-
-            button(() -> {
-                Style.Preview.button(App.getState().colorScheme());
-                margin(0, 0, 0, dip(25));
-                alignParentBottom();
-                centerHorizontal();
-                visibility(App.getState().toolbarShown());
-                onClick(v -> App.dispatch(new Action<>(ActionType.CLOSE_PRESENTATION)));
-            });
-        });
+    private static TextView presenterLabel(Context c, int sp) {
+        TextView label = new TextView(c);
+        label.setTextColor(Style.PRESENTER_TEXT);
+        label.setTextSize(sp);
+        return label;
     }
 
-    private void onOpenMenu(View v) {
-        PopupMenu menu = new PopupMenu(v.getContext(), v);
-        menu.getMenuInflater().inflate(R.menu.overflow_popup, menu.getMenu());
-        menu.setOnMenuItemClickListener(item -> {
-            if (item.getItemId() == R.id.menu_open) {
-                App.dispatch(new Action<>(ActionType.OPEN_DOCUMENT, (Activity) v.getContext()));
-            } else if (item.getItemId() == R.id.menu_insert_image) {
-                App.dispatch(new Action<>(ActionType.PICK_IMAGE, (Activity) v.getContext()));
-            } else if (item.getItemId() == R.id.menu_style) {
-                openStylePicker();
-            //} else if (item.getItemId() == R.id.menu_settings) {
-            } else if (item.getItemId() == R.id.menu_export_pdf) {
-                App.dispatch(new Action<>(ActionType.CREATE_PDF, (Activity) v.getContext()));
+    private static View touchZone(Context c, ActionType action) {
+        View zone = new View(c);
+        zone.setOnClickListener(v -> App.dispatch(new Action<>(action)));
+        return zone;
+    }
+
+    private static ImageButton closeButton(Context c) {
+        ImageButton close = new ImageButton(c);
+        close.setImageResource(R.drawable.ic_close);
+        int padding = Style.dip(c, 12);
+        close.setPadding(padding, padding, padding, padding);
+        close.setContentDescription(c.getString(R.string.cd_close_presentation));
+        close.setOnClickListener(v -> App.dispatch(new Action<>(ActionType.CLOSE_PRESENTATION)));
+        return close;
+    }
+
+    private static FrameLayout previewFrame(Context c) {
+        FrameLayout frame = new FrameLayout(c);
+        frame.setBackgroundResource(R.drawable.preview_bg);
+        frame.setPadding(Style.dip(c, 1), Style.dip(c, 1), Style.dip(c, 2), Style.dip(c, 2));
+        return frame;
+    }
+
+    // Since Android 15 the window is always edge-to-edge and the keyboard no longer
+    // resizes it, so system bars, cutouts and (when asked) the keyboard become padding.
+    private static void padForInsets(View v, int extra, boolean includeIme) {
+        v.setOnApplyWindowInsetsListener((view, insets) -> {
+            int left, top, right, bottom;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                int types = WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout();
+                if (includeIme && Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                    types |= WindowInsets.Type.ime();
+                }
+                Insets i = insets.getInsets(types);
+                left = i.left;
+                top = i.top;
+                right = i.right;
+                bottom = i.bottom;
+            } else {
+                left = insets.getSystemWindowInsetLeft();
+                top = insets.getSystemWindowInsetTop();
+                right = insets.getSystemWindowInsetRight();
+                bottom = insets.getSystemWindowInsetBottom();
             }
-            return true;
+            view.setPadding(left + extra, top + extra, right + extra, bottom + extra);
+            return insets;
         });
-        menu.show();
-    }
-
-    private void openStylePicker() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getContext())
-            .setTitle(getContext().getString(R.string.dlg_style_picker_title))
-            .setCancelable(true)
-            .setView(new StylePicker(getContext()))
-            .setPositiveButton(getContext().getString(R.string.btn_ok), (arg0, arg1) -> {});
-        AlertDialog dialog = builder.create();
-        dialog.setCanceledOnTouchOutside(true);
-        dialog.show();
     }
 }

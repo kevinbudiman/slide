@@ -8,15 +8,25 @@
     <string name="failed_export_pdf">PDF のエクスポートに失敗しました</string>
     <string name="default_new_doc_name">NewSlideDoc</string>
     <string name="failed_open_doc">ドキュメントを開くことができませんでした</string>
-    <string name="failed_save_doc">ドキュメントが見つかりませんでした</string>
+    <string name="failed_save_doc">ドキュメントを保存できませんでした</string>
 
     <string name="dlg_style_picker_title">スタイルを選択</string>
     <string name="btn_ok">OK</string>
 
-    <string name="om_open">開く</string>
+    <string name="om_open">開く…</string>
     <string name="om_insert_image">画像を挿入</string>
     <string name="om_style">スタイル</string>
-    <string name="om_settings">設定</string>
     <string name="om_export_pdf">PDF にエクスポート</string>
     <string name="next_slide">次のスライド</string>
+    <string name="om_new">新規</string>
+    <string name="om_recent">最近使用したファイル</string>
+    <string name="om_save_as">名前を付けて保存…</string>
+    <string name="dlg_discard_message">このプレゼンテーションはファイルに保存されていません。破棄しますか？</string>
+    <string name="btn_discard">破棄</string>
+    <string name="no_file_picker">ファイルを選択するアプリがありません</string>
+    <string name="no_recent_documents">最近使用したファイルはありません</string>
+    <string name="cd_menu">その他のオプション</string>
+    <string name="cd_close_presentation">プレゼンテーションを閉じる</string>
+    <string name="cd_start_presentation">プレゼンテーションを開始</string>
+    <string name="cd_color_scheme">配色 %1$d</string>
 </resources>
