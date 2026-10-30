@@ -1,0 +1,20 @@
+// Vendored from https://github.com/trikita/promote at commit de169a5 (MIT, see LICENSE).
+apply plugin: 'com.android.library'
+
+android {
+    namespace 'trikita.promote'
+    compileSdk 35
+
+    defaultConfig {
+        minSdkVersion 21
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    lint {
+        abortOnError false
+    }
+}

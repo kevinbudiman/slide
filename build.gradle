@@ -2,7 +2,6 @@ buildscript {
     repositories {
         google()
         mavenCentral()
-        jcenter() // for legacy trikita dependencies
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.2.2'
@@ -45,20 +44,12 @@ android {
     }
 }
 
-repositories {
-    google()
-    mavenLocal()
-    mavenCentral()
-    jcenter() // for legacy trikita dependencies
-    maven { url 'https://jitpack.io/' }
-}
-
 dependencies {
-    implementation 'androidx.annotation:annotation:1.7.1'
+    implementation project(':jedux')
+    implementation project(':promote')
 
+    implementation 'androidx.annotation:annotation:1.7.1'
     implementation 'co.trikita:anvil-sdk19:0.3.1'
-    implementation 'com.github.trikita:jedux:-SNAPSHOT'
-    implementation 'com.github.trikita:promote:-SNAPSHOT'
 
     implementation 'com.squareup.picasso:picasso:2.71828'
 
@@ -67,7 +58,4 @@ dependencies {
     compileOnly 'org.immutables:value:2.1.14'
 }
 
-try {
-    apply from: 'https://raw.github.com/trikita/gradle-android-signing/master/gradle-android-signing.gradle'
-} catch (Exception ignored) {
-}
+apply from: 'signing.gradle'

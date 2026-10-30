@@ -1,0 +1,13 @@
+<resources>
+
+    <string name="dialog_btn_cancel">ไม่, ขอบคุณ</string>
+    <string name="dialog_btn_later">ไว้ทีหลัง</string>
+
+    <string name="rate_dialog_title">ประเมินแอพนี้</string>
+    <string name="rate_dialog_message">ถ้าคุณพอใจในการใช้งานแอพนี้ ขอเวลาคุณสักครู่ในการประเมินแอพ \nขอบคุณสำหรับการสนับสนุน!</string>
+    <string name="rate_dialog_btn_ok">ประเมิน</string>
+
+    <string name="share_dialog_title">แบ่งปันโปรแกรมนี้</string>
+    <string name="share_dialog_message">คุณต้องการที่จะแบ่งปันโปรแกรมนี้กับเพื่อน ๆ ของคุณหรือไม่</string>
+    <string name="share_dialog_btn_ok">หุ้น </string>
+</resources>

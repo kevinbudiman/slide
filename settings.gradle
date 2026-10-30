@@ -6,4 +6,15 @@ pluginManagement {
     }
 }
 
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
 rootProject.name = 'slide'
+
+include ':jedux', ':promote'
+project(':jedux').projectDir = file('third_party/jedux')
+project(':promote').projectDir = file('third_party/promote')

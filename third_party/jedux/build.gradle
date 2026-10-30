@@ -1,0 +1,16 @@
+// Vendored from https://github.com/trikita/jedux at commit 4c96af3 (MIT, see LICENSE).
+apply plugin: 'com.android.library'
+
+android {
+    namespace 'trikita.jedux'
+    compileSdk 35
+
+    defaultConfig {
+        minSdkVersion 21
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}

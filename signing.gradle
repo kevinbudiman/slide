@@ -1,0 +1,25 @@
+// Release signing reads signing.properties from the project root or ~/.gradle.
+// Required keys: storeFile, storePassword, keyAlias, keyPassword.
+def propsFile = [file("${rootDir}/signing.properties"), file("${gradle.gradleUserHomeDir}/signing.properties")]
+        .find { it.exists() }
+
+if (propsFile == null) {
+    logger.info "No signing.properties found, release build will be unsigned"
+    android.buildTypes.release.signingConfig = null
+    return
+}
+
+def props = new Properties()
+propsFile.withInputStream { props.load(it) }
+
+def missing = ['storeFile', 'storePassword', 'keyAlias', 'keyPassword'].findAll { !props.containsKey(it) }
+if (!missing.isEmpty()) {
+    logger.error "signing.properties is missing: ${missing.join(', ')}"
+    android.buildTypes.release.signingConfig = null
+    return
+}
+
+android.signingConfigs.release.storeFile = file(props.storeFile)
+android.signingConfigs.release.storePassword = props.storePassword
+android.signingConfigs.release.keyAlias = props.keyAlias
+android.signingConfigs.release.keyPassword = props.keyPassword
