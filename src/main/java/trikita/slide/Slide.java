@@ -17,15 +17,18 @@ import android.text.style.StyleSpan;
 import android.text.style.TypefaceSpan;
 import android.view.Gravity;
 
-import com.squareup.picasso.RequestCreator;
-import com.squareup.picasso.Target;
-import com.squareup.picasso.Picasso;
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.RequestBuilder;
+import com.bumptech.glide.request.FutureTarget;
+import com.bumptech.glide.request.target.CustomTarget;
+import com.bumptech.glide.request.transition.Transition;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 import trikita.anvil.Anvil;
 
@@ -73,7 +76,6 @@ public class Slide {
     }
 
     private final List<Background> backgrounds = new ArrayList<>();
-    private final Map<String, CacheTarget> bitmaps = new HashMap<>();
     private final SpannableStringBuilder text = new SpannableStringBuilder();
 
     private Slide(String s) {
@@ -124,19 +126,61 @@ public class Slide {
         }
     }
 
-    private static class CacheTarget implements Target {
-        private Bitmap cacheBitmap;
+    // Slides are re-parsed on every state change, so loaded bitmaps are cached
+    // statically by URL and size to avoid starting a new request on each redraw.
+    private static class CacheTarget extends CustomTarget<Bitmap> {
+        private static final int MAX_ENTRIES = 16;
+        private static final Map<String, CacheTarget> CACHE =
+                new LinkedHashMap<String, CacheTarget>(MAX_ENTRIES, 0.75f, true) {
+                    @Override
+                    protected boolean removeEldestEntry(Map.Entry<String, CacheTarget> eldest) {
+                        if (size() > MAX_ENTRIES) {
+                            Glide.with(eldest.getValue().context).clear(eldest.getValue());
+                            return true;
+                        }
+                        return false;
+                    }
+                };
+
+        private final Context context;
+        private final String key;
+        private Bitmap bitmap;
+        private boolean loadingSynchronously;
+
+        private CacheTarget(Context context, String key) {
+            this.context = context;
+            this.key = key;
+        }
+
+        static Bitmap get(Context context, RequestBuilder<Bitmap> request, String key) {
+            CacheTarget target = CACHE.get(key);
+            if (target == null) {
+                target = new CacheTarget(context, key);
+                CACHE.put(key, target);
+                // Glide delivers memory-cache hits synchronously from into().
+                target.loadingSynchronously = true;
+                request.into(target);
+                target.loadingSynchronously = false;
+            }
+            return target.bitmap;
+        }
+
         @Override
-        public void onBitmapLoaded(Bitmap bitmap, Picasso.LoadedFrom from) {
-            cacheBitmap = bitmap;
-            if (from != Picasso.LoadedFrom.MEMORY) {
+        public void onResourceReady(Bitmap resource, Transition<? super Bitmap> transition) {
+            bitmap = resource;
+            if (!loadingSynchronously) {
                 Anvil.render();
             }
         }
-        @Override public void onBitmapFailed(Exception e, Drawable errorDrawable) {}
-        @Override public void onPrepareLoad(Drawable placeHolderDrawable) {}
-        public Bitmap getCacheBitmap() {
-            return cacheBitmap;
+
+        @Override
+        public void onLoadFailed(Drawable errorDrawable) {
+            CACHE.remove(key);
+        }
+
+        @Override
+        public void onLoadCleared(Drawable placeholder) {
+            bitmap = null;
         }
     }
 
@@ -147,35 +191,31 @@ public class Slide {
         textPaint.setAntiAlias(true);
         textPaint.setTypeface(Typeface.create(typeface, 0));
 
+        Context app = c.getApplicationContext();
         for (Background img: backgrounds) {
-            if (img.url != null) {
-                Bitmap b = null;
-                CacheTarget cacheTarget = new CacheTarget();
-                bitmaps.put(img.url, cacheTarget);
-                RequestCreator request = Picasso.get()
-                        .load(img.url);
-                if (img.scale > 0) {
-                    request = request.resize((int) (width * img.scale), (int) (height * img.scale));
-                } else {
-                    request = request.resize(width, height);
+            if (img.url == null) {
+                continue;
+            }
+            float scale = img.scale > 0 ? img.scale : 1f;
+            int targetWidth = (int) (width * scale);
+            int targetHeight = (int) (height * scale);
+            RequestBuilder<Bitmap> request = Glide.with(app)
+                    .asBitmap()
+                    .load(img.url)
+                    .override(targetWidth, targetHeight)
+                    .centerInside();
+            if (blocking) {
+                FutureTarget<Bitmap> future = request.submit();
+                try {
+                    drawBackground(canvas, future.get(), img.gravity, width, height, textPaint);
+                } catch (ExecutionException | InterruptedException e) {
+                    e.printStackTrace();
+                } finally {
+                    Glide.with(app).clear(future);
                 }
-                request = request.centerInside();
-                if (blocking) {
-                    try {
-                        b = request.get();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                } else {
-                    request.into(cacheTarget);
-                    b = cacheTarget.getCacheBitmap();
-                }
-                if (b != null) {
-                    Rect r = new Rect();
-                    Gravity.apply(img.gravity, b.getWidth(), b.getHeight(),
-                            new Rect(0, 0, width, height), r);
-                    canvas.drawBitmap(b, r.left, r.top, textPaint);
-                }
+            } else {
+                String key = img.url + "@" + targetWidth + "x" + targetHeight;
+                drawBackground(canvas, CacheTarget.get(app, request, key), img.gravity, width, height, textPaint);
             }
         }
 
@@ -214,6 +254,15 @@ public class Slide {
                 return;
             }
         }
+    }
+
+    private static void drawBackground(Canvas canvas, Bitmap b, int gravity, int width, int height, Paint paint) {
+        if (b == null) {
+            return;
+        }
+        Rect r = new Rect();
+        Gravity.apply(gravity, b.getWidth(), b.getHeight(), new Rect(0, 0, width, height), r);
+        canvas.drawBitmap(b, r.left, r.top, paint);
     }
 
     private static StaticLayout createStaticLayout(CharSequence text, TextPaint paint, int width) {
