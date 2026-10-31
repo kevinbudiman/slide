@@ -57,6 +57,8 @@ public class StorageController implements Store.Middleware<Action<ActionType, ?>
                 exportPdf(before, Uri.parse((String) action.value));
                 return;
             case NEW_DOCUMENT:
+                flush();
+                break;
             case SAVE_DOCUMENT_AS:
                 flush();
                 takePermission((String) action.value, true);
@@ -76,6 +78,7 @@ public class StorageController implements Store.Middleware<Action<ActionType, ?>
 
         switch (action.type) {
             case NEW_DOCUMENT:
+                break;
             case SAVE_DOCUMENT_AS:
                 App.getRecentDocuments().add(after.uri());
                 save(after);

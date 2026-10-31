@@ -119,7 +119,7 @@ public final class State {
                 case SET_ASPECT:
                     return s.withAspect((Integer) a.value);
                 case NEW_DOCUMENT:
-                    return s.withUri((String) a.value).withText("").withCursor(0);
+                    return s.withUri(null).withText("").withCursor(0);
                 case SAVE_DOCUMENT_AS:
                     return s.withUri((String) a.value);
                 case DOCUMENT_LOADED: {

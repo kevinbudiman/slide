@@ -42,7 +42,6 @@ import trikita.slide.State;
 
 public class MainActivity extends Activity {
 
-    private static final int NEW_DOCUMENT_REQUEST_CODE = 41;
     private static final int SAVE_DOCUMENT_AS_REQUEST_CODE = 42;
     private static final int OPEN_DOCUMENT_REQUEST_CODE = 43;
     private static final int PICK_IMAGE_REQUEST_CODE = 44;
@@ -158,8 +157,7 @@ public class MainActivity extends Activity {
             } else if (id == R.id.menu_share_pdf) {
                 sharePdf();
             } else if (id == R.id.menu_new) {
-                confirmDiscard(() -> createDocument(NEW_DOCUMENT_REQUEST_CODE, "text/plain",
-                        getString(R.string.default_new_doc_name)));
+                confirmDiscard(() -> App.dispatch(new Action<>(ActionType.NEW_DOCUMENT)));
             } else if (id == R.id.menu_open) {
                 confirmDiscard(() -> openDocument("text/*", OPEN_DOCUMENT_REQUEST_CODE));
             } else if (id == R.id.menu_recent) {
@@ -405,9 +403,6 @@ public class MainActivity extends Activity {
         }
         String uri = data.getData().toString();
         switch (requestCode) {
-            case NEW_DOCUMENT_REQUEST_CODE:
-                App.dispatch(new Action<>(ActionType.NEW_DOCUMENT, uri));
-                break;
             case SAVE_DOCUMENT_AS_REQUEST_CODE:
                 App.dispatch(new Action<>(ActionType.SAVE_DOCUMENT_AS, uri));
                 break;

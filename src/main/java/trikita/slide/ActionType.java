@@ -14,8 +14,9 @@ public enum ActionType {
     SET_FONT,
     SET_ASPECT,
 
+    NEW_DOCUMENT,       // empty, not attached to a file until "Save as"
+
     // Document actions carry the document URI as a String.
-    NEW_DOCUMENT,
     OPEN_DOCUMENT,
     SAVE_DOCUMENT_AS,
     DOCUMENT_LOADED,    // value: State.LoadedDocument

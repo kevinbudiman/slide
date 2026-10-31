@@ -68,9 +68,11 @@ public class StateTest {
 
     @Test
     public void newDocumentStartsEmpty() {
-        State s = reduce(State.initial("A"), ActionType.NEW_DOCUMENT, "content://new");
-        assertEquals("content://new", s.uri());
+        State s = reduce(State.initial("A"), ActionType.SAVE_DOCUMENT_AS, "content://doc");
+        s = reduce(s, ActionType.NEW_DOCUMENT, null);
+        assertNull(s.uri());
         assertEquals("", s.text());
+        assertEquals(0, s.cursor());
     }
 
     @Test
