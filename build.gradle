@@ -38,6 +38,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Shows up in Settings > Apps > Slide, so testers can tell which CI build is installed.
+            versionNameSuffix "-" + (System.getenv("GITHUB_SHA")?.take(7) ?: "dev")
+        }
         release {
             minifyEnabled true
             shrinkResources true
