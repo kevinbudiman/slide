@@ -21,6 +21,14 @@ android {
     }
 
     signingConfigs {
+        // A fixed debug key, so debug APKs from CI install as updates of each
+        // other. Debug keys are not secret; the release key never lives here.
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
         release
     }
 
